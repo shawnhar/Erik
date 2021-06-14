@@ -1,4 +1,3 @@
-use std::env;
 use std::fs;
 
 
@@ -8,17 +7,11 @@ pub struct InputSource {
 
 
 impl InputSource {
-    pub fn new() -> InputSource {
-        let source_text = match Self::read_arg_file() {
-            Some(arg_file_contents) => {
-                // Source expression was read from an argument file.
-                arg_file_contents.lines().map(String::from).collect()
-            },
-
-            None => {
-                // Commandline arguments provide the source expression.
-                env::args().skip(1).collect()
-            },
+    pub fn new(args: Vec<String>) -> InputSource {
+        // Should we read an argument file, or use the commandline arguments directly?
+        let source_text = match Self::read_arg_file(&args) {
+            Some(arg_file_contents) => arg_file_contents,
+            None => args
         };
 
         InputSource { source_text: source_text }
@@ -26,10 +19,19 @@ impl InputSource {
 
 
     // If there is only one commandline argument, try to read that as an argument file.
-    fn read_arg_file() -> Option<String> {
-        match env::args().nth(1) {
-            Some(filename) if env::args().count() == 2 => fs::read_to_string(filename).ok(),
-            _ => None
+    fn read_arg_file(args: &[String]) -> Option<Vec<String>> {
+        if args.len() == 1 {
+            let filename = &args[0];
+            
+            match fs::read_to_string(filename) {
+                Ok(file_contents) => Some(file_contents.lines()
+                                                       .map(String::from)
+                                                       .collect()),
+                Err(_) => None
+            }
+        }
+        else {
+            None
         }
     }
 }
