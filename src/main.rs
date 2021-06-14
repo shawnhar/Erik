@@ -1,3 +1,10 @@
+mod input;
+
+
 fn main() {
-    println!("Hello, world!");
+    let input = input::InputSource::new();
+
+    for line in input {
+        println!("{:?}", line);
+    }
 }
