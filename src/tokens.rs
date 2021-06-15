@@ -104,24 +104,22 @@ impl<'a> Tokenizer<'a> {
 
     // Reads a numeric constant.
     fn read_number(&mut self) -> Token<'a> {
-        /*
-        if (Peek() == '0') {
-                s += Next();
+        let start_slice = self.remainder;
 
-                switch (Peek()) {
-                        case 'x': Next(); return ReadHex();     
-                        case 'b': Next(); return ReadBinary();  
-                }
+        if let Some('0') = self.get() {
+            match self.peek() {
+                Some('x') => { self.get(); return self.read_hex(); }
+                Some('b') => { self.get(); return self.read_binary(); }
+                _ => {}
+            }
         }
-        */
-        self.read_decimal()
+
+        self.read_decimal(start_slice)
     }
 
 
     // Reads a decimal floating point constant.
-    fn read_decimal(&mut self) -> Token<'a> {
-        let start_slice = self.remainder;
-
+    fn read_decimal(&mut self, start_slice: &str) -> Token<'a> {
         loop {
             match self.peek() {
                 // Always accept numeric digits and period characters.
@@ -133,10 +131,8 @@ impl<'a> Tokenizer<'a> {
                 Some(char) if char == 'e' => {
                     self.get();
                     
-                    if let Some(char) = self.peek() {
-                        if char == '-' {
-                            self.next();
-                        }
+                    if let Some('-') = self.peek() {
+                        self.next();
                     }
                 }
 
@@ -154,51 +150,42 @@ impl<'a> Tokenizer<'a> {
     }
 
 
-/*
-        // convert a hex character to a numeric value
-        static int Hex(char c)
-        {
-                if (char.IsDigit(c))
-                        return c - '0';
+    // Reads a hexadecimal constant.
+    fn read_hex(&mut self) -> Token<'a> {
+        let mut value: u64 = 0;
 
-                c = char.ToUpper(c);
+        loop {
+            match self.peek() {
+                Some(char) if char.is_ascii_hexdigit() => {
+                    value <<= 4;
+                    value |= self.get().unwrap().to_digit(16).unwrap() as u64;
+                },
 
-                if ((c >= 'A') && (c <= 'F'))
-                        return 0xA + c - 'A';
-
-                return -1;
+                _ => break
+            }
         }
 
+        Token::Integer(value)
+    }
 
 
-        // read a hexadecimal constant
-        double ReadHex()
-        {
-                ulong val = 0;
+    // Reads a binary constant.
+    fn read_binary(&mut self) -> Token<'a> {
+        let mut value: u64 = 0;
 
-                while (Hex(Peek()) >= 0) {
-                        val <<= 4;
-                        val |= (uint)Hex(Next());
-                }
+        loop {
+            match self.peek() {
+                Some(char) if char == '0' || char == '1' => {
+                    value <<= 1;
+                    value |= self.get().unwrap().to_digit(2).unwrap() as u64;
+                },
 
-                return val;
+                _ => break
+            }
         }
 
-
-
-        // read a binary constant
-        double ReadBinary()
-        {
-                ulong val = 0;
-
-                while ((Peek() == '0') || (Peek() == '1')) {
-                        val <<= 1;
-                        val |= (uint)(Next() - '0');
-                }
-
-                return val;
-        }
-*/
+        Token::Integer(value)
+    }
 
 
     // Reads a alphabetical bareword.
