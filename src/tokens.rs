@@ -17,10 +17,10 @@ pub struct Tokenizer<'a> {
 
 
 impl<'a> Iterator for Tokenizer<'a> {
-    type Item = Token<'a>;
+    type Item = Result<Token<'a>, String>;
 
-    
-    fn next(&mut self) -> Option<Token<'a>> {
+
+    fn next(&mut self) -> Option<Result<Token<'a>, String>> {
         // Skip whitespace.
         while matches!(self.peek(), Some(char) if char.is_whitespace()) {
             self.get();
@@ -35,12 +35,12 @@ impl<'a> Iterator for Tokenizer<'a> {
 
                 // Barewords.
                 if char.is_alphabetic() || (char == '_') {
-                    return Some(self.read_bareword());
+                    return Some(Ok(self.read_bareword()));
                 }
 
                 // Quoted strings.
                 if char == '"' || char == '\'' {
-                    return Some(self.read_quoted());
+                    return Some(Ok(self.read_quoted()));
                 }
 
                 // TODO a special operator?
@@ -50,7 +50,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                   //      return op;
 
                 // Unknown single character.
-                return Some(self.read_unknown_character());
+                return Some(Ok(self.read_unknown_character()));
             }
             
             // End of the input stream.
@@ -61,6 +61,7 @@ impl<'a> Iterator for Tokenizer<'a> {
 
 
 impl<'a> Tokenizer<'a> {
+    // Wraps a tokenizer around the provided string reference.
     pub fn new(input: &str) -> Tokenizer {
         Tokenizer {
             iterator: input.chars(),
@@ -100,7 +101,7 @@ impl<'a> Tokenizer<'a> {
 
 
     // Reads a numeric constant.
-    fn read_number(&mut self) -> Token<'a> {
+    fn read_number(&mut self) -> Result<Token<'a>, String> {
         let start_slice = self.remainder;
 
         if let Some('0') = self.get() {
@@ -116,10 +117,10 @@ impl<'a> Tokenizer<'a> {
 
 
     // Reads a decimal floating point constant.
-    fn read_decimal(&mut self, start_slice: &str) -> Token<'a> {
+    fn read_decimal(&mut self, start_slice: &str) -> Result<Token<'a>, String> {
         loop {
             match self.peek() {
-                // Always accept numeric digits and period characters.
+                // Accept numeric digits and period characters.
                 Some(char) if char.is_ascii_digit() || char == '.' => {
                     self.get();
                 }
@@ -140,29 +141,34 @@ impl<'a> Tokenizer<'a> {
         let slice = &start_slice[.. start_slice.len() - self.remainder.len()];
 
         // The above logic will accept plenty of invalid strings, so this conversion can fail!
-        // TODO error handling
-        let value = slice.parse().unwrap();
-
-        Token::Number(value)
+        match slice.parse() {
+            Ok(value) => Ok(Token::Number(value)),
+            Err(_) => Err(format!("Invalid numeric constant '{0}'", slice))
+        }
     }
 
 
     // Reads an integer constant using binary or hexadecimal number base.
-    fn read_integer(&mut self, base: u32) -> Token<'a> {
+    fn read_integer(&mut self, base: u32) -> Result<Token<'a>, String> {
         let mut value = 0u64;
 
         while let Some(char) = self.peek() {
             if let Some(digit) = char.to_digit(base) {
-                value *= base as u64;
-                value |= digit as u64;
                 self.get();
+
+                match value.checked_mul(base as u64) {
+                    Some(new_value) => value = new_value,
+                    None => return Err(format!("Base {} constant overflowed 64 bits", base))
+                }
+                
+                value |= digit as u64;
             }
             else {
                 break;
             }
         }
 
-        Token::Integer(value)
+        Ok(Token::Integer(value))
     }
 
 
