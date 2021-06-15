@@ -33,19 +33,17 @@ impl<'a> Iterator for Tokenizer<'a> {
             Some(char) => {
                 // Numbers.
                 if char.is_ascii_digit() || char == '.' {
-                    self.get();
-                    return Some(Token::Number(23.0));
-                    //              return ReadNumber();
+                    return Some(self.read_number());
                 }
 
                 // Barewords.
                 if char.is_alphabetic() || (char == '_') {
-                    return Some(Token::Text(self.read_bareword()));
+                    return Some(self.read_bareword());
                 }
 
                 // Quoted strings.
                 if char == '"' || char == '\'' {
-                    return Some(Token::Text(self.read_quoted()));
+                    return Some(self.read_quoted());
                 }
 
                 // TODO a special operator?
@@ -55,7 +53,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                   //      return op;
 
                 // Unknown single character.
-                return Some(Token::Text(self.read_unknown_character()));
+                return Some(self.read_unknown_character());
             },
             
             // End of the input stream.
@@ -104,45 +102,59 @@ impl<'a> Tokenizer<'a> {
     }
 
 
+    // Reads a numeric constant.
+    fn read_number(&mut self) -> Token<'a> {
+        /*
+        if (Peek() == '0') {
+                s += Next();
+
+                switch (Peek()) {
+                        case 'x': Next(); return ReadHex();     
+                        case 'b': Next(); return ReadBinary();  
+                }
+        }
+        */
+        self.read_decimal()
+    }
+
+
+    // Reads a decimal floating point constant.
+    fn read_decimal(&mut self) -> Token<'a> {
+        let start_slice = self.remainder;
+
+        loop {
+            match self.peek() {
+                // Always accept numeric digits and period characters.
+                Some(char) if char.is_ascii_digit() || char == '.' => {
+                    self.get();
+                }
+
+                // Also accept exponent markers, optionally followed by a minus sign.
+                Some(char) if char == 'e' => {
+                    self.get();
+                    
+                    if let Some(char) = self.peek() {
+                        if char == '-' {
+                            self.next();
+                        }
+                    }
+                }
+
+                _ => break
+            }
+        }
+
+        let slice = &start_slice[.. start_slice.len() - self.remainder.len()];
+
+        // The above logic will accept plenty of invalid strings, so this conversion can fail!
+        // TODO error handling
+        let value = slice.parse().unwrap();
+
+        Token::Number(value)
+    }
+
 
 /*
-    // Reads a numeric constant.
-    fn read_number() -> f64 {
-                string s = "";
-
-                if (Peek() == '0') {
-                        s += Next();
-
-                        switch (Peek()) {
-                                case 'x': Next(); return ReadHex();     
-                                case 'b': Next(); return ReadBinary();  
-                        }
-                }
-
-                return ReadDecimal(s);
-        }
-
-
-
-        // read a decimal floating point constant
-        double ReadDecimal(string s)
-        {
-                while (char.IsDigit(Peek()) || (Peek() == '.') || (Peek() == 'e')) {
-                        if (Peek() == 'e') {
-                                s += Next();
-
-                                if (Peek() == '-')
-                                        s += Next();
-                        }
-                        else
-                                s += Next();
-                }
-
-                return double.Parse(s, CultureInfo.InvariantCulture);
-        }
-
-
-
         // convert a hex character to a numeric value
         static int Hex(char c)
         {
@@ -190,7 +202,7 @@ impl<'a> Tokenizer<'a> {
 
 
     // Reads a alphabetical bareword.
-    fn read_bareword(&mut self) -> &'a str {
+    fn read_bareword(&mut self) -> Token<'a> {
         let start_slice = self.remainder;
 
         loop {
@@ -200,15 +212,15 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        &start_slice[.. start_slice.len() - self.remainder.len()]
+        Token::Text(&start_slice[.. start_slice.len() - self.remainder.len()])
     }
 
 
     // Reads a quoted string.
-    fn read_quoted(&mut self) -> &'a str {
+    fn read_quoted(&mut self) -> Token<'a> {
         let quote = self.get().unwrap();
         let start_slice = self.remainder;
-        let mut end_slice = self.remainder;
+        let mut end_slice = start_slice;
 
         loop {
             match self.get() {
@@ -218,15 +230,15 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        &start_slice[.. start_slice.len() - end_slice.len()]
+        Token::Text(&start_slice[.. start_slice.len() - end_slice.len()])
     }
 
 
-    // Reads a single character as a slice reference.
-    fn read_unknown_character(&mut self) -> &'a str {
+    // Reads a single character.
+    fn read_unknown_character(&mut self) -> Token<'a> {
         let start_slice = self.remainder;
         self.get();
-        &start_slice[.. start_slice.len() - self.remainder.len()]
+        Token::Text(&start_slice[.. start_slice.len() - self.remainder.len()])
     }
 
 
