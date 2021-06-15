@@ -22,11 +22,8 @@ impl<'a> Iterator for Tokenizer<'a> {
     
     fn next(&mut self) -> Option<Token<'a>> {
         // Skip whitespace.
-        loop {
-            match self.peek() {
-                Some(char) if char.is_whitespace() => { self.get(); }
-                _ => break
-            }
+        while matches!(self.peek(), Some(char) if char.is_whitespace()) {
+            self.get();
         }
 
         match self.peek() {
@@ -54,7 +51,7 @@ impl<'a> Iterator for Tokenizer<'a> {
 
                 // Unknown single character.
                 return Some(self.read_unknown_character());
-            },
+            }
             
             // End of the input stream.
             None => return None
@@ -154,15 +151,9 @@ impl<'a> Tokenizer<'a> {
     fn read_hex(&mut self) -> Token<'a> {
         let mut value: u64 = 0;
 
-        loop {
-            match self.peek() {
-                Some(char) if char.is_ascii_hexdigit() => {
-                    value <<= 4;
-                    value |= self.get().unwrap().to_digit(16).unwrap() as u64;
-                },
-
-                _ => break
-            }
+        while matches!(self.peek(), Some(char) if char.is_ascii_hexdigit()) {
+            value <<= 4;
+            value |= self.get().unwrap().to_digit(16).unwrap() as u64;
         }
 
         Token::Integer(value)
@@ -173,15 +164,9 @@ impl<'a> Tokenizer<'a> {
     fn read_binary(&mut self) -> Token<'a> {
         let mut value: u64 = 0;
 
-        loop {
-            match self.peek() {
-                Some(char) if char == '0' || char == '1' => {
-                    value <<= 1;
-                    value |= self.get().unwrap().to_digit(2).unwrap() as u64;
-                },
-
-                _ => break
-            }
+        while matches!(self.peek(), Some(char) if char == '0' || char == '1') {
+            value <<= 1;
+            value |= self.get().unwrap().to_digit(2).unwrap() as u64;
         }
 
         Token::Integer(value)
@@ -192,11 +177,8 @@ impl<'a> Tokenizer<'a> {
     fn read_bareword(&mut self) -> Token<'a> {
         let start_slice = self.remainder;
 
-        loop {
-            match self.peek() {
-                Some(char) if char.is_alphabetic() || char == '_' => { self.get(); }
-                _ => break
-            }
+        while matches!(self.peek(), Some(char) if char.is_alphabetic() || char == '_') {
+            self.get();
         }
 
         Token::Text(&start_slice[.. start_slice.len() - self.remainder.len()])
