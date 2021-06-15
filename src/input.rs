@@ -11,7 +11,7 @@ impl InputSource {
         // Should we read an argument file, or use the commandline arguments directly?
         let source_text = match Self::read_arg_file(&args) {
             Some(arg_file_contents) => arg_file_contents,
-            None => args
+            None => if args.len() > 0 {vec![args.join(" ")] } else { vec![] }
         };
 
         InputSource { source_text }
@@ -74,8 +74,7 @@ mod tests {
         let input = InputSource::new(vec![ String::from("Hello"), String::from("World") ]);
         let mut iter = input.into_iter();
 
-        assert_eq!(iter.next().unwrap(), String::from("Hello"));
-        assert_eq!(iter.next().unwrap(), String::from("World"));
+        assert_eq!(iter.next().unwrap(), String::from("Hello World"));
         assert!(iter.next() == None);
     }
 
@@ -101,8 +100,7 @@ mod tests {
         let input = InputSource::new(vec![ String::from("args.txt"), String::from("another") ]);
         let mut iter = input.into_iter();
 
-        assert_eq!(iter.next().unwrap(), String::from("args.txt"));
-        assert_eq!(iter.next().unwrap(), String::from("another"));
+        assert_eq!(iter.next().unwrap(), String::from("args.txt another"));
         assert!(iter.next() == None);
         
         fs::remove_file("args2.txt").unwrap();
