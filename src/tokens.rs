@@ -105,8 +105,8 @@ impl<'a> Tokenizer<'a> {
 
         if let Some('0') = self.get() {
             match self.peek() {
-                Some('x') => { self.get(); return self.read_hex(); }
-                Some('b') => { self.get(); return self.read_binary(); }
+                Some('b') => { self.get(); return self.read_integer(2); }
+                Some('x') => { self.get(); return self.read_integer(16); }
                 _ => {}
             }
         }
@@ -147,26 +147,19 @@ impl<'a> Tokenizer<'a> {
     }
 
 
-    // Reads a hexadecimal constant.
-    fn read_hex(&mut self) -> Token<'a> {
-        let mut value: u64 = 0;
+    // Reads an integer constant using binary or hexadecimal number base.
+    fn read_integer(&mut self, base: u32) -> Token<'a> {
+        let mut value = 0u64;
 
-        while matches!(self.peek(), Some(char) if char.is_ascii_hexdigit()) {
-            value <<= 4;
-            value |= self.get().unwrap().to_digit(16).unwrap() as u64;
-        }
-
-        Token::Integer(value)
-    }
-
-
-    // Reads a binary constant.
-    fn read_binary(&mut self) -> Token<'a> {
-        let mut value: u64 = 0;
-
-        while matches!(self.peek(), Some(char) if char == '0' || char == '1') {
-            value <<= 1;
-            value |= self.get().unwrap().to_digit(2).unwrap() as u64;
+        while let Some(char) = self.peek() {
+            if let Some(digit) = char.to_digit(base) {
+                value *= base as u64;
+                value |= digit as u64;
+                self.get();
+            }
+            else {
+                break;
+            }
         }
 
         Token::Integer(value)
