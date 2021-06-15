@@ -14,7 +14,7 @@ impl InputSource {
             None => args
         };
 
-        InputSource { source_text: source_text }
+        InputSource { source_text }
     }
 
 
@@ -37,7 +37,7 @@ impl InputSource {
 }
 
 
-// We can iterate over the input source, which will yield a series of strings.
+// Iterating over the input source will yield a series of strings.
 impl IntoIterator for InputSource {
     type Item = String;
     type IntoIter = std::vec::IntoIter<Self::Item>;
