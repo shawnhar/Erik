@@ -270,12 +270,12 @@ mod tests {
 
     #[test]
     fn whitespace_and_barewords() {
-        let mut t = Tokenizer::new("   hello  t  - %@ ");
+        let mut t = Tokenizer::new("   hello  t  # [@ ");
         
         assert!(matches!(t.next().unwrap(), Ok(Token::Text("hello"))));
         assert!(matches!(t.next().unwrap(), Ok(Token::Text("t"))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Text("-"))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Text("%"))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("#"))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("["))));
         assert!(matches!(t.next().unwrap(), Ok(Token::Text("@"))));
 
         assert!(t.next().is_none());
@@ -318,7 +318,7 @@ mod tests {
         expect_number(t.next(), 0.5);
         assert!(matches!(t.next().unwrap(), Ok(Token::Text("x"))));
 
-        assert!(matches!(t.next().unwrap(), Ok(Token::Text("-"))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Operator(_))));
         expect_number(t.next(), 10.0);
 
         assert_eq!(t.next().unwrap().unwrap_err(), "Invalid numeric constant '3ee2'");
