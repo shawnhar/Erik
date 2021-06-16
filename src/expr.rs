@@ -76,7 +76,7 @@ impl Parser {
             return Err(String::from("Invalid expression bTodo."));
         }
 
-        let args = parse_arguments(tokenizer);
+        let args = parse_arguments(tokenizer)?;
 
         match ops::find_operator(symbol) {
             Some(op) => self.current_value = Some(ExpressionNode::Operator { op, args }),
@@ -224,20 +224,21 @@ fn peek_operator(tokenizer: &mut Peekable<Tokenizer>, opname: &str) -> bool {
 
 
 // Parses the arguments of a function call.
-fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Vec<ExpressionNode>
+fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Result<Vec<ExpressionNode>, String>
 {
-    let args = vec![];
+    let mut args = vec![];
 
     if peek_operator(tokenizer, "(") {
         tokenizer.next();
 
-        //while (tokenizer.Peek() != OpTable.CloseBrace)
-        //TODO    args.Add(new Parser(tokenizer, true).Result);
+        while !peek_operator(tokenizer, ")") {
+            args.push(parse_expression(tokenizer, true)?);
+        }
 
         tokenizer.next();
     }
 
-    args
+    Ok(args)
 }
 
 
