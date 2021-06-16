@@ -6,7 +6,6 @@ use crate::ops;
 pub enum Token<'a> {
     Text(&'a str),
     Number(f64),
-    Integer(u64),
     Operator(&'static ops::Operator)
 }
 
@@ -151,25 +150,25 @@ impl<'a> Tokenizer<'a> {
 
     // Reads an integer constant using binary or hexadecimal number base.
     fn read_integer(&mut self, base: u32) -> Result<Token<'a>, String> {
-        let mut value = 0u64;
+        let mut value = 0u32;
 
         while let Some(char) = self.peek() {
             if let Some(digit) = char.to_digit(base) {
                 self.get();
 
-                match value.checked_mul(base as u64) {
+                match value.checked_mul(base) {
                     Some(new_value) => value = new_value,
-                    None => return Err(format!("Base {} constant overflowed 64 bit range", base))
+                    None => return Err(format!("Base {} constant overflowed 32 bit range", base))
                 }
                 
-                value |= digit as u64;
+                value |= digit;
             }
             else {
                 break;
             }
         }
 
-        Ok(Token::Integer(value))
+        Ok(Token::Number(value as f64))
     }
 
 
@@ -294,17 +293,18 @@ mod tests {
     }
 
 
+    fn expect_number(value: Option<Result<Token, String>>, expected: f64) {
+        match value.unwrap().unwrap() {
+            Token::Number(value) => assert_eq!(value, expected),
+            _ => assert!(false)
+        }
+    }  
+      
+
     #[test]
     fn floats() {
         let mut t = Tokenizer::new("1 100 0.5 3.14 .6 007 10e4 10e-3 1.5e2 0.5x -10 3ee2 3..14");
 
-        fn expect_number(value: Option<Result<Token, String>>, expected: f64) {
-            match value.unwrap().unwrap() {
-                Token::Number(value) => assert_eq!(value, expected),
-                _ => assert!(false)
-            }
-        }  
-      
         expect_number(t.next(), 1.0);
         expect_number(t.next(), 100.0);
         expect_number(t.next(), 0.5);
@@ -330,19 +330,20 @@ mod tests {
 
     #[test]
     fn hexadecimal() {
-        let mut t = Tokenizer::new("0x 0x0 0x1 0xDeadBeef 0x123456789ABCDEF 0xffffffffffffffff 0xfeedme 0x10000000000000000");
+        let mut t = Tokenizer::new("0x 0x0 0x1 0xDeadBeef 0x12345678 0x9ABCDEF 0xffffffff 0xfeedme 0x100000000");
 
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0u64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0u64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(1u64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0xDEADBEEFu64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0x123456789ABCDEFu64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0xFFFFFFFFFFFFFFFFu64))));
+        expect_number(t.next(), 0.0);
+        expect_number(t.next(), 0.0);
+        expect_number(t.next(), 1.0);
+        expect_number(t.next(), 0xDEADBEEFu32 as f64);
+        expect_number(t.next(), 0x12345678 as f64);
+        expect_number(t.next(), 0x9ABCDEF as f64);
+        expect_number(t.next(), 0xFFFFFFFFu32 as f64);
 
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0xFEEDu64))));
+        expect_number(t.next(), 0xFEED as f64);
         assert!(matches!(t.next().unwrap(), Ok(Token::Text("me"))));
 
-        assert_eq!(t.next().unwrap().unwrap_err(), "Base 16 constant overflowed 64 bit range");
+        assert_eq!(t.next().unwrap().unwrap_err(), "Base 16 constant overflowed 32 bit range");
 
         assert!(t.next().is_none());
     }
@@ -350,18 +351,18 @@ mod tests {
 
     #[test]
     fn binary() {
-        let mut t = Tokenizer::new("0b 0b0 0b1 0b01101100 0b1111111111111111111111111111111111111111111111111111111111111111 0b102 0b10000000000000000000000000000000000000000000000000000000000000000");
+        let mut t = Tokenizer::new("0b 0b0 0b1 0b01101100 0b11111111111111111111111111111111 0b102 0b100000000000000000000000000000000");
 
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0u64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0u64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(1u64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0x6Cu64))));
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0xFFFFFFFFFFFFFFFFu64))));
+        expect_number(t.next(), 0.0);
+        expect_number(t.next(), 0.0);
+        expect_number(t.next(), 1.0);
+        expect_number(t.next(), 0x6Cu64 as f64);
+        expect_number(t.next(), 0xFFFFFFFFu32 as f64);
 
-        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(2u64))));
+        expect_number(t.next(), 2.0);
         assert!(matches!(t.next().unwrap(), Ok(Token::Number(_))));
 
-        assert_eq!(t.next().unwrap().unwrap_err(), "Base 2 constant overflowed 64 bit range");
+        assert_eq!(t.next().unwrap().unwrap_err(), "Base 2 constant overflowed 32 bit range");
 
         assert!(t.next().is_none());
     }
