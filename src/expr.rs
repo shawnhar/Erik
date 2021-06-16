@@ -15,9 +15,8 @@ pub enum ExpressionNode {
 // The parser turns a series of tokens into an expression tree.
 struct Parser
 {
-    operator_stack: Vec<ops::OperatorRef>,
-    value_stack:    Vec<Option<ExpressionNode>>,
-    current_value:  Option<ExpressionNode>
+    stack: Vec<(ops::OperatorRef, Option<ExpressionNode>)>,
+    current_value: Option<ExpressionNode>,
 }
 
 
@@ -61,9 +60,9 @@ impl Parser {
         if op != "(" {
             let operator_precedence = op.precedence as u32;
 
-            while !self.operator_stack.is_empty() {
+            while !self.stack.is_empty() {
                 // Compare precedence with the operator on top of the stack.
-                let stack_operator = self.operator_stack.last().unwrap();
+                let stack_operator = self.stack.last().unwrap().0;
                 let mut stack_precedence = stack_operator.precedence as u32;
 
                 if stack_operator.arity != 1 {
@@ -81,8 +80,7 @@ impl Parser {
                 }
 
                 // Pop from the stack, taking ownership where we were previously just examining a borrow.
-                let stack_operator = self.operator_stack.pop().unwrap();
-                let stack_value = self.value_stack.pop().unwrap();
+                let (stack_operator, stack_value) = self.stack.pop().unwrap();
 
                 match stack_operator.arity {
                     1 => {
@@ -127,14 +125,13 @@ impl Parser {
 
         if op == ")" {
             // Swallow close braces, but not too many.
-            if self.operator_stack.is_empty() {
+            if self.stack.is_empty() {
                 return Err(String::from("Invalid expression iTODO."));
             }
         }
         else {
             // Push onto the stack.
-            self.operator_stack.push(op);
-            self.value_stack.push(self.current_value.take());
+            self.stack.push((op, self.current_value.take()));
         }
         
         Ok(())
@@ -190,7 +187,7 @@ impl Parser {
             // Parsing x or y from something like f(x, y(z)).
             // Closing parenthisis terminates only if there are no open parens on the stack.
             if Parser::peek_operator(tokenizer, ")") {
-                !self.operator_stack.iter().any(|op| { op == "(" })
+                !self.stack.iter().any(|op| { op.0 == "(" })
             }
             else {
                 false
@@ -217,9 +214,8 @@ impl Parser {
 pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<ExpressionNode, String>
 {
     let mut parser = Parser {
-        operator_stack: vec![],
-        value_stack:    vec![],
-        current_value:  None,
+        stack: vec![],
+        current_value: None,
     };
 
     // Shift/reduce loop.
@@ -243,12 +239,12 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
 
     parser.push_operator(&ops::TERMINATOR)?;
 
-    // We should now have just one root node left on the value stack.
-    if parser.operator_stack.len() != 1 || parser.value_stack.len() != 1 {
+    // We should now have just one item left on the stack.
+    if parser.stack.len() != 1 {
         return Err(String::from("Invalid expression zTODO."));
     }
 
-    Ok(parser.value_stack.pop().unwrap().unwrap())
+    Ok(parser.stack.pop().unwrap().1.unwrap())
 }
 
 
