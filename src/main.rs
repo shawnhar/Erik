@@ -2,6 +2,7 @@ use std::env;
 
 mod input;
 mod tokens;
+mod ops;
 
 
 fn main() {
@@ -10,8 +11,6 @@ fn main() {
     let input = input::InputSource::new(args);
 
     for line in input {
-        println!("{:?}", line);
-
         let tokenizer = tokens::Tokenizer::new(&line);
         
         for token in tokenizer {

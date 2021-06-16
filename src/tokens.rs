@@ -1,11 +1,13 @@
 use std::str;
+use crate::ops;
 
 
 #[derive(Debug)]
 pub enum Token<'a> {
+    Text(&'a str),
     Number(f64),
     Integer(u64),
-    Text(&'a str)
+    Operator(&'static ops::Operator)
 }
 
 
@@ -43,7 +45,10 @@ impl<'a> Iterator for Tokenizer<'a> {
                     return Some(Ok(self.read_quoted()));
                 }
 
-                // TODO handle operators
+                // Could this be an operator?
+                if let Some(operator) = self.read_operator() {
+                    return Some(Ok(operator));
+                }
 
                 // Unknown single character.
                 return Some(Ok(self.read_unknown_character()));
@@ -203,6 +208,28 @@ impl<'a> Tokenizer<'a> {
         let start_slice = self.remainder;
         self.get();
         Token::Text(&start_slice[.. start_slice.len() - self.remainder.len()])
+    }
+
+
+    // Attempts to match against the set of known operators.
+    fn read_operator(&mut self) -> Option<Token<'a>> {
+        let start_slice = self.remainder;
+
+        fn could_be_operator(opname: &str) -> bool {
+            ops::OPERATORS.iter().any(|op| op.name.starts_with(opname))
+        }
+
+        while could_be_operator(&start_slice[.. start_slice.len() - self.iterator.as_str().len()]) {
+            self.get();
+            self.peek();
+        }
+
+        let opname = &start_slice[.. start_slice.len() - self.remainder.len()];
+
+        match ops::OPERATORS.iter().find(|op| op.name == opname) {
+            Some(operator) => Some(Token::Operator(operator)),
+            None => None
+        }
     }
 }
 
