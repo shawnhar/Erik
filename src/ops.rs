@@ -28,7 +28,7 @@ pub struct Operator {
     pub name: &'static str,
     pub precedence: Precedence,
     pub arity: u32,
-    pub right_assoc: bool,
+    pub is_right_associative: bool,
 }
 
 
@@ -49,90 +49,96 @@ impl PartialEq<str> for OperatorRef {
 }
 
 
+// Helper reduces repetititiveness of what follows.
+const fn make_op(name: &'static str, precedence: Precedence, arity: u32) -> Operator {
+    Operator { name, precedence, arity, is_right_associative: false }
+}
+
+
 pub static OPERATORS: [Operator; 52] = [
-    // Special marker operators.
-    Operator { name: "(",     precedence: Precedence::Brace,  arity: 0, right_assoc: false },
-    Operator { name: ")",     precedence: Precedence::Brace,  arity: 0, right_assoc: false },
-    Operator { name: "=",     precedence: Precedence::Assign, arity: 2, right_assoc: false },
+    // Special markers.
+    make_op("(",     Precedence::Brace,       0),
+    make_op(")",     Precedence::Brace,       0),
+    make_op("=",     Precedence::Assign,      2),
 
     // Component parts of the ternary ?: operator.
-    Operator { name: "?",     precedence: Precedence::Ternary, arity: 2, right_assoc: true },
-    Operator { name: ":",     precedence: Precedence::Ternary, arity: 2, right_assoc: true },
+    Operator { name: "?", precedence: Precedence::Ternary, arity: 2, is_right_associative: true },
+    Operator { name: ":", precedence: Precedence::Ternary, arity: 2, is_right_associative: true },
 
-    // Lazily evaluated logical operators.
-    Operator { name: "||",    precedence: Precedence::LogicalOr,  arity: 2, right_assoc: false },
-    Operator { name: "&&",    precedence: Precedence::LogicalAnd, arity: 2, right_assoc: false },
+    // Logical operators.
+    make_op("||",    Precedence::LogicalOr,   2),
+    make_op("&&",    Precedence::LogicalAnd,  2),
 
     // Binary operators.
-    Operator { name: "|",     precedence: Precedence::BinaryOr,  arity: 2, right_assoc: false },
-    Operator { name: "^^",    precedence: Precedence::BinaryXor, arity: 2, right_assoc: false },
-    Operator { name: "&",     precedence: Precedence::BinaryAnd, arity: 2, right_assoc: false },
+    make_op("|",     Precedence::BinaryOr,    2),
+    make_op("^^",    Precedence::BinaryXor,   2),
+    make_op("&",     Precedence::BinaryAnd,   2),
 
     // Comparisons
-    Operator { name: "==",    precedence: Precedence::CompareEq,   arity: 2, right_assoc: false },
-    Operator { name: "!=",    precedence: Precedence::CompareEq,   arity: 2, right_assoc: false },
-    Operator { name: "<",     precedence: Precedence::CompareDiff, arity: 2, right_assoc: false },
-    Operator { name: ">",     precedence: Precedence::CompareDiff, arity: 2, right_assoc: false },
-    Operator { name: "<=",    precedence: Precedence::CompareDiff, arity: 2, right_assoc: false },
-    Operator { name: ">=",    precedence: Precedence::CompareDiff, arity: 2, right_assoc: false },
+    make_op("==",    Precedence::CompareEq,   2),
+    make_op("!=",    Precedence::CompareEq,   2),
+    make_op("<",     Precedence::CompareDiff, 2),
+    make_op(">",     Precedence::CompareDiff, 2),
+    make_op("<=",    Precedence::CompareDiff, 2),
+    make_op(">=",    Precedence::CompareDiff, 2),
 
     // Shifts.
-    Operator { name: "<<",    precedence: Precedence::Shift, arity: 2, right_assoc: false },
-    Operator { name: ">>",    precedence: Precedence::Shift, arity: 2, right_assoc: false },
-    Operator { name: ">>>",   precedence: Precedence::Shift, arity: 2, right_assoc: false },
+    make_op("<<",    Precedence::Shift,       2),
+    make_op(">>",    Precedence::Shift,       2),
+    make_op(">>>",   Precedence::Shift,       2),
 
     // Arithmetic.
-    Operator { name: "+",     precedence: Precedence::Addition, arity: 2, right_assoc: false },
-    Operator { name: "-",     precedence: Precedence::Addition, arity: 2, right_assoc: false },
-    Operator { name: "*",     precedence: Precedence::Multiply, arity: 2, right_assoc: false },
-    Operator { name: "/",     precedence: Precedence::Multiply, arity: 2, right_assoc: false },
-    Operator { name: "%",     precedence: Precedence::Multiply, arity: 2, right_assoc: false },
+    make_op("+",     Precedence::Addition,    2),
+    make_op("-",     Precedence::Addition,    2),
+    make_op("*",     Precedence::Multiply,    2),
+    make_op("/",     Precedence::Multiply,    2),
+    make_op("%",     Precedence::Multiply,    2),
 
     // Negation.
-    Operator { name: "!",     precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "~",     precedence: Precedence::Unary, arity: 1, right_assoc: false },
+    make_op("!",     Precedence::Unary,       1),
+    make_op("~",     Precedence::Unary,       1),
 
     // Raise to a power.
-    Operator { name: "^",     precedence: Precedence::Power, arity: 2, right_assoc: false },
+    make_op("^",     Precedence::Power,       2),
 
     // Math functions.
-    Operator { name: "max",   precedence: Precedence::None,  arity: 2, right_assoc: false },
-    Operator { name: "min",   precedence: Precedence::None,  arity: 2, right_assoc: false },
-    Operator { name: "sqrt",  precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "exp",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "ln",    precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "log",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "ceil",  precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "floor", precedence: Precedence::Unary, arity: 1, right_assoc: false },
+    make_op("max",   Precedence::None,        2),
+    make_op("min",   Precedence::None,        2),
+    make_op("sqrt",  Precedence::None,        1),
+    make_op("exp",   Precedence::None,        1),
+    make_op("ln",    Precedence::None,        1),
+    make_op("log",   Precedence::None,        1),
+    make_op("ceil",  Precedence::None,        1),
+    make_op("floor", Precedence::None,        1),
 
     // Trig.
-    Operator { name: "sin",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "cos",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "tan",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "sinh",  precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "cosh",  precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "tanh",  precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "asin",  precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "acos",  precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "atan",  precedence: Precedence::Unary, arity: 1, right_assoc: false },
+    make_op("sin",   Precedence::None,        1),
+    make_op("cos",   Precedence::None,        1),
+    make_op("tan",   Precedence::None,        1),
+    make_op("sinh",  Precedence::None,        1),
+    make_op("cosh",  Precedence::None,        1),
+    make_op("tanh",  Precedence::None,        1),
+    make_op("asin",  Precedence::None,        1),
+    make_op("acos",  Precedence::None,        1),
+    make_op("atan",  Precedence::None,        1),
 
     // Casts.
-    Operator { name: "s8",    precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "u8",    precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "s16",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "u16",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "s32",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
-    Operator { name: "u32",   precedence: Precedence::Unary, arity: 1, right_assoc: false },
+    make_op("s8",    Precedence::None,        1),
+    make_op("u8",    Precedence::None,        1),
+    make_op("s16",   Precedence::None,        1),
+    make_op("u16",   Precedence::None,        1),
+    make_op("s32",   Precedence::None,        1),
+    make_op("u32",   Precedence::None,        1),
 
     // Constants.
-    Operator { name: "e",     precedence: Precedence::None, arity: 0, right_assoc: false },
-    Operator { name: "pi",    precedence: Precedence::None, arity: 0, right_assoc: false },
+    make_op("e",     Precedence::None,        0),
+    make_op("pi",    Precedence::None,        0),
 ];
 
 
 // Special operators, not accessible by name.
-pub static TERMINATOR: Operator = Operator { name: "terminator", precedence: Precedence::Terminator, arity: 0, right_assoc: false };
-pub static NEGATE:     Operator = Operator { name: "-",          precedence: Precedence::Unary,      arity: 1, right_assoc: false };
+pub static TERMINATOR: Operator = make_op("terminator", Precedence::Terminator, 0);
+pub static NEGATE:     Operator = make_op("-",          Precedence::Unary,      1);
 // TODO Operator { name: "?:", precedence: Precedence::Ternary },
 
 

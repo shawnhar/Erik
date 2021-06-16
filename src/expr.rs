@@ -72,7 +72,7 @@ impl Parser {
                         break;
                     }
 
-                    if !stack.right_assoc {
+                    if !stack.is_right_associative {
                         stack_precedence = stack_precedence + 1;
                     }
                 }
