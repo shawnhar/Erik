@@ -27,7 +27,7 @@ pub struct Operator {
 }
 
 
-pub static OPERATORS: [Operator; 56] = [
+pub static OPERATORS: [Operator; 53] = [
     // Special marker operators.
     Operator { name: "(",     precedence: Precedence::Brace  },
     Operator { name: ")",     precedence: Precedence::Brace  },
@@ -103,9 +103,6 @@ pub static OPERATORS: [Operator; 56] = [
     Operator { name: "u16",   precedence: Precedence::None },
     Operator { name: "s32",   precedence: Precedence::None },
     Operator { name: "u32",   precedence: Precedence::None },
-    Operator { name: "s64",   precedence: Precedence::None },
-    Operator { name: "u64",   precedence: Precedence::None },
-    Operator { name: "f64",   precedence: Precedence::None },
 
     // Constants.
     Operator { name: "e",     precedence: Precedence::None },
