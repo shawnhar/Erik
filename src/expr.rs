@@ -24,9 +24,9 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
         match tokenizer.next() {
             Some(token) => {
                 match token? {
-                    Token::Number(value) => parser.push_constant(value),
-                    Token::Text(value)   => parser.push_symbol(value),
-                    Token::Operator(op)  => parser.push_operator(op),
+                    Token::Number(value) => parser.push_constant(value)?,
+                    Token::Text(value)   => parser.push_symbol(value, tokenizer)?,
+                    Token::Operator(op)  => parser.push_operator(op)?,
                 }
             },
             None => return Err(String::from("Invalid expression xTODO."))
@@ -38,7 +38,7 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
         return Err(String::from("Invalid expression yTODO."));
     }
 
-    parser.push_operator(&ops::TERMINATOR);
+    parser.push_operator(&ops::TERMINATOR)?;
 
     // We should now have just one root node left on the value stack.
     if parser.operator_stack.len() != 1 || parser.value_stack.len() != 1 {
@@ -58,43 +58,41 @@ struct Parser
 
 
 impl Parser {
-    fn push_constant(&self, value: f64) {
+    // Pushes a numeric constant onto the stack.
+    fn push_constant(&mut self, value: f64) -> Result<(), String> {
+        if self.current_value.is_some() {
+            return Err(String::from("Invalid expression aTodo."));
+        }
+
+        self.current_value = Some(ExpressionNode::Constant { value });
+        
+        Ok(())
     }
 
 
-    fn push_symbol(&self, value: &str) {
+    // Pushes a symbol reference (variable or function call) onto the stack.
+    fn push_symbol(&mut self, symbol: &str, tokenizer: &mut Peekable<Tokenizer>) -> Result<(), String> {
+        if self.current_value.is_some() {
+            return Err(String::from("Invalid expression bTodo."));
+        }
+
+        let args = parse_arguments(tokenizer);
+
+        match ops::find_operator(symbol) {
+            Some(op) => self.current_value = Some(ExpressionNode::Operator { op, args }),
+            None     => self.current_value = Some(ExpressionNode::Function { name: String::from(symbol), args }),
+        }
+
+        Ok(())
     }
 
 
-    fn push_operator(&self, op: ops::OperatorRef) {
+    fn push_operator(&self, op: ops::OperatorRef) -> Result<(), String> {
+        Ok(())
     }
     
     
 /*
-    // push a value onto the stack
-    void PushValue(object value, TokenPeeker tokenizer)
-    {
-            if (mCurrent != null)
-                    throw ParseError();
-
-            string str = value as string;
-
-            if (str != null) {
-                    // some kind of function call or variable lookup
-                    ParseTree[] args = ParseArguments(tokenizer);
-
-                    Operator op;
-
-                    if (OpTable.Functions.TryGetValue(str, out op))
-                            mCurrent = new ParseTreeOperator(op, args);
-                    else
-                            mCurrent = new ParseTreeFunction(str, args);
-            }
-            else {
-                    // numeric constant
-                    mCurrent = new ParseTreeConstant((double)value);
-            }
-    }
 
 
     // push an operator onto the stack
@@ -191,24 +189,6 @@ impl Parser {
 
             return new ParseTreeOperator(op, new ParseTree[] { x, y } );
     }
-
-
-    // parse the arguments of a function call
-    static ParseTree[] ParseArguments(TokenPeeker tokenizer)
-    {
-            List<ParseTree> args = new List<ParseTree>();
-
-            if (tokenizer.Peek() == OpTable.OpenBrace) {
-                    tokenizer.Read();
-
-                    while (tokenizer.Peek() != OpTable.CloseBrace)
-                            args.Add(new Parser(tokenizer, true).Result);
-
-                    tokenizer.Read();
-            }
-
-            return args.ToArray();
-    }
 */
 
 
@@ -231,6 +211,28 @@ impl Parser {
             tokenizer.peek().is_none()
         }
     }
+}
+
+
+// Parses the arguments of a function call.
+fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Vec<ExpressionNode>
+{
+    let args = vec![];
+
+    match tokenizer.peek() {
+        Some(Ok(Token::Operator(op))) if op.name == "(" => {
+            tokenizer.next();
+
+            //while (tokenizer.Peek() != OpTable.CloseBrace)
+            //TODO    args.Add(new Parser(tokenizer, true).Result);
+
+            tokenizer.next();
+        },
+        
+        _ => {}
+    }
+
+    args
 }
 
 
