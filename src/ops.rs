@@ -2,7 +2,7 @@
 pub enum Precedence {
     None,
     Brace,
-    // TODO Terminator,
+    Terminator,
     Assign,
     Ternary,
     LogicalOr,
@@ -23,8 +23,11 @@ pub enum Precedence {
 #[derive(Debug)]
 pub struct Operator {
     pub name: &'static str,
-    pub precedence: Precedence
+    pub precedence: Precedence,
 }
+
+
+pub type OperatorRef = &'static Operator;
 
 
 pub static OPERATORS: [Operator; 52] = [
@@ -109,11 +112,12 @@ pub static OPERATORS: [Operator; 52] = [
 
 
 // Special operators, not accessed by name.
-// pub static NEGATE: Operator = Operator { name: "", precedence: Precedence::Unary };
-// TODO Operator { name: "", precedence: Precedence::Ternary },
+pub static TERMINATOR: Operator = Operator { name: "terminator", precedence: Precedence::Terminator };
+// pub static NEGATE: Operator = Operator { name: "-", precedence: Precedence::Unary };
+// TODO Operator { name: "?:", precedence: Precedence::Ternary },
 
 
-pub fn find_operator(opname: &str) -> Option<&'static Operator> {
+pub fn find_operator(opname: &str) -> Option<OperatorRef> {
     // Linear search is fine as there aren't that many operators and their names are short.
     OPERATORS.iter().find(|op| op.name == opname)
 }

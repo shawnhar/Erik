@@ -1,26 +1,30 @@
-use std::env;
-
 mod input;
 mod tokens;
 mod expr;
 mod ops;
 
+use std::env;
+use input::InputSource;
+use tokens::Tokenizer;
+
 
 fn main() {
     let args = env::args().skip(1).collect();
 
-    let input = input::InputSource::new(args);
+    let input = InputSource::new(args);
 
     for line in input {
-        evaluate(&line);
+        if let Err(message) = evaluate(&line) {
+            println!("Error: {}", message);
+        }
     }
 }
 
 
-fn evaluate(line: &str) {
-    let tokenizer = tokens::Tokenizer::new(&line);
-    
-    for token in tokenizer {
-        println!("{:?}", token);
-    }
+fn evaluate(line: &str) -> Result<(), String> {
+    let mut tokenizer = Tokenizer::new(&line).peekable();
+
+    expr::parse_expression(&mut tokenizer, false)?;
+
+    Ok(())
 }

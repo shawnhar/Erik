@@ -9,30 +9,30 @@ pub struct InputSource {
 impl InputSource {
     pub fn new(args: Vec<String>) -> InputSource {
         // Should we read an argument file, or use the commandline arguments directly?
-        let source_text = match Self::read_arg_file(&args) {
+        let source_text = match read_arg_file(&args) {
             Some(arg_file_contents) => arg_file_contents,
             None => if args.len() > 0 {vec![args.join(" ")] } else { vec![] }
         };
 
         InputSource { source_text }
     }
+}
 
 
-    // If there is only one commandline argument, try to read that as an argument file.
-    fn read_arg_file(args: &[String]) -> Option<Vec<String>> {
-        if args.len() == 1 {
-            let filename = &args[0];
-            
-            match fs::read_to_string(filename) {
-                Ok(file_contents) => Some(file_contents.lines()
-                                                       .map(String::from)
-                                                       .collect()),
-                Err(_) => None
-            }
+// If there is only one commandline argument, try to read that as an argument file.
+fn read_arg_file(args: &[String]) -> Option<Vec<String>> {
+    if args.len() == 1 {
+        let filename = &args[0];
+        
+        match fs::read_to_string(filename) {
+            Ok(file_contents) => Some(file_contents.lines()
+                                                   .map(String::from)
+                                                   .collect()),
+            Err(_) => None
         }
-        else {
-            None
-        }
+    }
+    else {
+        None
     }
 }
 

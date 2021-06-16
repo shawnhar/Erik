@@ -1,11 +1,236 @@
+use std::iter::Peekable;
 use crate::ops;
+use crate::tokens::{Token, Tokenizer};
 
 
 #[derive(Debug)]
-pub enum ExpressionNode<'a> {
-    Constant(f64),
-    Operator(&'static ops::Operator, Vec<ExpressionNode<'a>>),
-    Function(&'a str, Vec<ExpressionNode<'a>>)
+pub enum ExpressionNode {
+    Constant { value: f64 },
+    Operator { op: ops::OperatorRef, args: Vec<ExpressionNode> },
+    Function { name: String,         args: Vec<ExpressionNode> },
+}
+
+
+pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<ExpressionNode, String>
+{
+    let mut parser = Parser {
+        operator_stack: vec![],
+        value_stack:    vec![],
+        current_value:  None,
+    };
+
+    // Shift/reduce loop.
+    while !parser.done_parsing(tokenizer, is_nested) {
+        match tokenizer.next() {
+            Some(token) => {
+                match token? {
+                    Token::Number(value) => parser.push_constant(value),
+                    Token::Text(value)   => parser.push_symbol(value),
+                    Token::Operator(op)  => parser.push_operator(op),
+                }
+            },
+            None => return Err(String::from("Invalid expression xTODO."))
+        }
+    }
+
+    // Flush the stack.
+    if parser.current_value.is_none() {
+        return Err(String::from("Invalid expression yTODO."));
+    }
+
+    parser.push_operator(&ops::TERMINATOR);
+
+    // We should now have just one root node left on the value stack.
+    if parser.operator_stack.len() != 1 || parser.value_stack.len() != 1 {
+        return Err(String::from("Invalid expression zTODO."));
+    }
+
+    Ok(parser.value_stack.pop().unwrap())
+}
+
+
+struct Parser
+{
+    operator_stack: Vec<ops::OperatorRef>,
+    value_stack:    Vec<ExpressionNode>,
+    current_value:  Option<ExpressionNode>
+}
+
+
+impl Parser {
+    fn push_constant(&self, value: f64) {
+    }
+
+
+    fn push_symbol(&self, value: &str) {
+    }
+
+
+    fn push_operator(&self, op: ops::OperatorRef) {
+    }
+    
+    
+/*
+    // push a value onto the stack
+    void PushValue(object value, TokenPeeker tokenizer)
+    {
+            if (mCurrent != null)
+                    throw ParseError();
+
+            string str = value as string;
+
+            if (str != null) {
+                    // some kind of function call or variable lookup
+                    ParseTree[] args = ParseArguments(tokenizer);
+
+                    Operator op;
+
+                    if (OpTable.Functions.TryGetValue(str, out op))
+                            mCurrent = new ParseTreeOperator(op, args);
+                    else
+                            mCurrent = new ParseTreeFunction(str, args);
+            }
+            else {
+                    // numeric constant
+                    mCurrent = new ParseTreeConstant((double)value);
+            }
+    }
+
+
+    // push an operator onto the stack
+    void PushOperator(Operator op)
+    {
+            // bodge to handle unary negation versus binary subtraction
+            if ((op == OpTable.Subtract) && (mCurrent == null))
+                    op = OpTable.UnaryNegate;
+
+            // reduce the precedence stack
+            if (op != OpTable.OpenBrace) {
+                    Ops.Precedence precedence = op.Precedence;
+
+                    while (mOperators.Count > 0) {
+                            // compare precedence with the operator on top of the stack
+                            Operator stack = mOperators.Peek();
+
+                            Ops.Precedence stackPrecedence = stack.Precedence;
+
+                            if (stack.Arity != 1) {
+                                    if (op.Arity == 1)
+                                            break;
+
+                                    if (!stack.RightAssociative)
+                                            stackPrecedence++;
+                            }
+
+                            if (precedence >= stackPrecedence)
+                                    break;
+
+                            // pop from the stack
+                            mOperators.Pop();
+
+                            ParseTree stackValue = mValues.Pop();
+
+                            switch (stack.Arity) {
+
+                                    case 1:
+                                            // unary operator
+                                            if ((mCurrent == null) || (stackValue != null))
+                                                    throw ParseError();
+
+                                            mCurrent = new ParseTreeOperator(stack, new ParseTree[] { mCurrent } );
+                                            break;
+
+                                    case 2:
+                                            // binary operator
+                                            if ((mCurrent == null) || (stackValue == null))
+                                                    throw ParseError();
+
+                                            mCurrent = BinaryOrTernary(stack, stackValue, mCurrent);
+                                            break;
+
+                                    default:
+                                            // match open and close braces
+                                            if ((stack != OpTable.OpenBrace) || (stackValue != null))
+                                                    throw ParseError();
+
+                                            if (op == OpTable.CloseBrace) {
+                                                    if (mCurrent == null)
+                                                            throw ParseError();
+
+                                                    return;
+                                            }
+                                            else
+                                                    break;
+                            }
+                    }
+            }
+
+            if (op == OpTable.CloseBrace) {
+                    // swallow close braces, but not too many
+                    if (mOperators.Count <= 0)
+                            throw ParseError();
+            }
+            else {
+                    // push onto the stack
+                    mOperators.Push(op);
+                    mValues.Push(mCurrent);
+                    mCurrent = null;
+            }
+    }
+
+
+    // decide whether this is a binary or ternary operator
+    static ParseTree BinaryOrTernary(Operator op, ParseTree x, ParseTree y)
+    {
+            if (op == OpTable.QuestionMark) {
+                    ParseTreeOperator colon = y as ParseTreeOperator;
+
+                    if ((colon != null) && (colon.Operator == OpTable.Colon))
+                            return new ParseTreeOperator(OpTable.Ternary, new ParseTree[] { x, colon.Args[0], colon.Args[1] } );
+            }
+
+            return new ParseTreeOperator(op, new ParseTree[] { x, y } );
+    }
+
+
+    // parse the arguments of a function call
+    static ParseTree[] ParseArguments(TokenPeeker tokenizer)
+    {
+            List<ParseTree> args = new List<ParseTree>();
+
+            if (tokenizer.Peek() == OpTable.OpenBrace) {
+                    tokenizer.Read();
+
+                    while (tokenizer.Peek() != OpTable.CloseBrace)
+                            args.Add(new Parser(tokenizer, true).Result);
+
+                    tokenizer.Read();
+            }
+
+            return args.ToArray();
+    }
+*/
+
+
+    // Decide whether we've reached the end of the expression.
+    fn done_parsing(&self, tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> bool {
+        if let Some(Ok(Token::Text(","))) = tokenizer.peek() {
+            // Commas always terminate.
+            tokenizer.next();
+            true
+        }
+        else if is_nested {
+            // Parsing x or y from something like f(x, y(z)).
+            match tokenizer.peek() {
+                Some(Ok(Token::Operator(op))) if op.name == ")" => !self.operator_stack.iter().any(|op| { op.name == "(" }),
+                _ => false
+            }
+        }
+        else {
+            // Parsing the top level expression.
+            tokenizer.peek().is_none()
+        }
+    }
 }
 
 

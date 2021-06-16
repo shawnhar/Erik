@@ -4,16 +4,16 @@ use crate::ops;
 
 #[derive(Debug)]
 pub enum Token<'a> {
-    Text(&'a str),
     Number(f64),
-    Operator(&'static ops::Operator)
+    Text(&'a str),
+    Operator(ops::OperatorRef),
 }
 
 
 pub struct Tokenizer<'a> {
     iterator: str::Chars<'a>,
     remainder: &'a str,
-    peeked: Option<char>
+    peeked: Option<char>,
 }
 
 
@@ -66,7 +66,7 @@ impl<'a> Tokenizer<'a> {
         Tokenizer {
             iterator: input.chars(),
             remainder: &input,
-            peeked: None
+            peeked: None,
         }
     }
 
@@ -143,7 +143,7 @@ impl<'a> Tokenizer<'a> {
         // The above logic will accept plenty of invalid strings, so this conversion can fail!
         match slice.parse() {
             Ok(value) => Ok(Token::Number(value)),
-            Err(_) => Err(format!("Invalid numeric constant '{0}'", slice))
+            Err(_) => Err(format!("Invalid numeric constant '{0}'.", slice))
         }
     }
 
@@ -158,7 +158,7 @@ impl<'a> Tokenizer<'a> {
 
                 match value.checked_mul(base) {
                     Some(new_value) => value = new_value,
-                    None => return Err(format!("Base {} constant overflowed 32 bit range", base))
+                    None => return Err(format!("Base {} constant overflowed 32 bit range.", base))
                 }
                 
                 value |= digit;
@@ -321,8 +321,8 @@ mod tests {
         assert!(matches!(t.next().unwrap(), Ok(Token::Operator(_))));
         expect_number(t.next(), 10.0);
 
-        assert_eq!(t.next().unwrap().unwrap_err(), "Invalid numeric constant '3ee2'");
-        assert_eq!(t.next().unwrap().unwrap_err(), "Invalid numeric constant '3..14'");
+        assert_eq!(t.next().unwrap().unwrap_err(), "Invalid numeric constant '3ee2'.");
+        assert_eq!(t.next().unwrap().unwrap_err(), "Invalid numeric constant '3..14'.");
 
         assert!(t.next().is_none());
     }
@@ -343,7 +343,7 @@ mod tests {
         expect_number(t.next(), 0xFEED as f64);
         assert!(matches!(t.next().unwrap(), Ok(Token::Text("me"))));
 
-        assert_eq!(t.next().unwrap().unwrap_err(), "Base 16 constant overflowed 32 bit range");
+        assert_eq!(t.next().unwrap().unwrap_err(), "Base 16 constant overflowed 32 bit range.");
 
         assert!(t.next().is_none());
     }
@@ -362,7 +362,7 @@ mod tests {
         expect_number(t.next(), 2.0);
         assert!(matches!(t.next().unwrap(), Ok(Token::Number(_))));
 
-        assert_eq!(t.next().unwrap().unwrap_err(), "Base 2 constant overflowed 32 bit range");
+        assert_eq!(t.next().unwrap().unwrap_err(), "Base 2 constant overflowed 32 bit range.");
 
         assert!(t.next().is_none());
     }
