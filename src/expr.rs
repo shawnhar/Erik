@@ -16,7 +16,7 @@ pub enum ExpressionNode {
 struct Parser
 {
     operator_stack: Vec<ops::OperatorRef>,
-    value_stack:    Vec<ExpressionNode>,
+    value_stack:    Vec<Option<ExpressionNode>>,
     current_value:  Option<ExpressionNode>
 }
 
@@ -83,8 +83,7 @@ impl Parser {
 
                 // Pop from the stack.
                 let stack = self.operator_stack.pop().unwrap();
-
-                let stack_value = self.value_stack.pop();
+                let stack_value = self.value_stack.pop().unwrap();
 
                 match stack.arity {
     
@@ -94,7 +93,7 @@ impl Parser {
                             return Err(String::from("Invalid expression iTodo."));
                         }
 
-                        self.current_value = Some(ExpressionNode::Operator { op, args: vec![ self.current_value.take().unwrap() ] });
+                        self.current_value = Some(ExpressionNode::Operator { op: stack, args: vec![ self.current_value.take().unwrap() ] });
                     },
                                         
                     2 => {
@@ -103,7 +102,7 @@ impl Parser {
                             return Err(String::from("Invalid expression hTodo."));
                         }
 
-                        self.current_value = Some(ExpressionNode::Operator { op, args: vec![ stack_value.unwrap(), self.current_value.take().unwrap() ] });
+                        self.current_value = Some(ExpressionNode::Operator { op: stack, args: vec![ stack_value.unwrap(), self.current_value.take().unwrap() ] });
                         // TODO BinaryOrTernary(stack, stack_value, mCurrent);
                     },
                     
@@ -134,7 +133,7 @@ impl Parser {
         else {
             // Push onto the stack.
             self.operator_stack.push(op);
-            self.value_stack.push(self.current_value.take().unwrap());
+            self.value_stack.push(self.current_value.take());
         }
         
         Ok(())
@@ -245,7 +244,7 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
         return Err(String::from("Invalid expression zTODO."));
     }
 
-    Ok(parser.value_stack.pop().unwrap())
+    Ok(parser.value_stack.pop().unwrap().unwrap())
 }
 
 
