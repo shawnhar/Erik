@@ -1,3 +1,4 @@
+// Ordering of these enum values determines parser behavior.
 #[derive(Debug)]
 pub enum Precedence {
     None,
@@ -20,6 +21,7 @@ pub enum Precedence {
 }
 
 
+// Implementation of an operator or built-in function.
 #[derive(Debug)]
 pub struct Operator {
     pub name: &'static str,
@@ -30,6 +32,7 @@ pub struct Operator {
 pub type OperatorRef = &'static Operator;
 
 
+// Allow comparing operators directly against their string names.
 impl PartialEq<str> for &Operator {
     fn eq(&self, other: &str) -> bool {
         self.name == other
@@ -118,7 +121,7 @@ pub static OPERATORS: [Operator; 52] = [
 ];
 
 
-// Special operators, not accessed by name.
+// Special operators, not accessible by name.
 pub static TERMINATOR: Operator = Operator { name: "terminator", precedence: Precedence::Terminator };
 // pub static NEGATE: Operator = Operator { name: "-", precedence: Precedence::Unary };
 // TODO Operator { name: "?:", precedence: Precedence::Ternary },

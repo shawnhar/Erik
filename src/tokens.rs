@@ -2,6 +2,7 @@ use std::str;
 use crate::ops;
 
 
+// Before parsing, input strings are tokenized into a linear sequence of these enums.
 #[derive(Debug)]
 pub enum Token<'a> {
     Number(f64),
@@ -10,8 +11,9 @@ pub enum Token<'a> {
 }
 
 
+// Tokenizer iterates over input characters, and is itself iterable as a series of tokens.
 pub struct Tokenizer<'a> {
-    iterator: str::Chars<'a>,
+    input_iterator: str::Chars<'a>,
     remainder: &'a str,
     peeked: Option<char>,
 }
@@ -64,7 +66,7 @@ impl<'a> Tokenizer<'a> {
     // Wraps a tokenizer around the provided string reference.
     pub fn new(input: &str) -> Tokenizer {
         Tokenizer {
-            iterator: input.chars(),
+            input_iterator: input.chars(),
             remainder: &input,
             peeked: None,
         }
@@ -81,10 +83,10 @@ impl<'a> Tokenizer<'a> {
             }
 
             // Read a new value.
-            None => self.iterator.next()
+            None => self.input_iterator.next()
         };
         
-        self.remainder = self.iterator.as_str();
+        self.remainder = self.input_iterator.as_str();
         
         result
     }
@@ -93,7 +95,7 @@ impl<'a> Tokenizer<'a> {
     // Peeks the next character, without advancing the input position.
     fn peek(&mut self) -> Option<char> {
         if let None = self.peeked {
-            self.peeked = self.iterator.next();
+            self.peeked = self.input_iterator.next();
         }
         
         self.peeked
@@ -218,7 +220,7 @@ impl<'a> Tokenizer<'a> {
             ops::OPERATORS.iter().any(|op| op.name.starts_with(opname))
         }
 
-        while could_be_operator(&start_slice[.. start_slice.len() - self.iterator.as_str().len()]) {
+        while could_be_operator(&start_slice[.. start_slice.len() - self.input_iterator.as_str().len()]) {
             self.get();
 
             if let None = self.peek() {

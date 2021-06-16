@@ -3,6 +3,7 @@ use crate::ops;
 use crate::tokens::{Token, Tokenizer};
 
 
+// Expressions are represented as a tree of nodes.
 #[derive(Debug)]
 pub enum ExpressionNode {
     Constant { value: f64 },
@@ -11,44 +12,7 @@ pub enum ExpressionNode {
 }
 
 
-pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<ExpressionNode, String>
-{
-    let mut parser = Parser {
-        operator_stack: vec![],
-        value_stack:    vec![],
-        current_value:  None,
-    };
-
-    // Shift/reduce loop.
-    while !parser.done_parsing(tokenizer, is_nested) {
-        match tokenizer.next() {
-            Some(token) => {
-                match token? {
-                    Token::Number(value) => parser.push_constant(value)?,
-                    Token::Text(value)   => parser.push_symbol(value, tokenizer)?,
-                    Token::Operator(op)  => parser.push_operator(op)?,
-                }
-            },
-            None => return Err(String::from("Invalid expression xTODO."))
-        }
-    }
-
-    // Flush the stack.
-    if parser.current_value.is_none() {
-        return Err(String::from("Invalid expression yTODO."));
-    }
-
-    parser.push_operator(&ops::TERMINATOR)?;
-
-    // We should now have just one root node left on the value stack.
-    if parser.operator_stack.len() != 1 || parser.value_stack.len() != 1 {
-        return Err(String::from("Invalid expression zTODO."));
-    }
-
-    Ok(parser.value_stack.pop().unwrap())
-}
-
-
+// The parser turns a series of tokens into an expression tree.
 struct Parser
 {
     operator_stack: Vec<ops::OperatorRef>,
@@ -239,6 +203,45 @@ fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Result<Vec<Expression
     }
 
     Ok(args)
+}
+
+
+// The main expression parser.
+pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<ExpressionNode, String>
+{
+    let mut parser = Parser {
+        operator_stack: vec![],
+        value_stack:    vec![],
+        current_value:  None,
+    };
+
+    // Shift/reduce loop.
+    while !parser.done_parsing(tokenizer, is_nested) {
+        match tokenizer.next() {
+            Some(token) => {
+                match token? {
+                    Token::Number(value) => parser.push_constant(value)?,
+                    Token::Text(value)   => parser.push_symbol(value, tokenizer)?,
+                    Token::Operator(op)  => parser.push_operator(op)?,
+                }
+            },
+            None => return Err(String::from("Invalid expression xTODO."))
+        }
+    }
+
+    // Flush the stack.
+    if parser.current_value.is_none() {
+        return Err(String::from("Invalid expression yTODO."));
+    }
+
+    parser.push_operator(&ops::TERMINATOR)?;
+
+    // We should now have just one root node left on the value stack.
+    if parser.operator_stack.len() != 1 || parser.value_stack.len() != 1 {
+        return Err(String::from("Invalid expression zTODO."));
+    }
+
+    Ok(parser.value_stack.pop().unwrap())
 }
 
 
