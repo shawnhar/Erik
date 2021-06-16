@@ -93,8 +93,6 @@ impl Parser {
     
     
 /*
-
-
     // push an operator onto the stack
     void PushOperator(Operator op)
     {
@@ -202,7 +200,7 @@ impl Parser {
         else if is_nested {
             // Parsing x or y from something like f(x, y(z)).
             match tokenizer.peek() {
-                Some(Ok(Token::Operator(op))) if op.name == ")" => !self.operator_stack.iter().any(|op| { op.name == "(" }),
+                Some(Ok(Token::Operator(op))) if op == ")" => !self.operator_stack.iter().any(|op| { op == "(" }),
                 _ => false
             }
         }
@@ -220,7 +218,7 @@ fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Vec<ExpressionNode>
     let args = vec![];
 
     match tokenizer.peek() {
-        Some(Ok(Token::Operator(op))) if op.name == "(" => {
+        Some(Ok(Token::Operator(op))) if op == "(" => {
             tokenizer.next();
 
             //while (tokenizer.Peek() != OpTable.CloseBrace)

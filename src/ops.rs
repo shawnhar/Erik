@@ -30,6 +30,13 @@ pub struct Operator {
 pub type OperatorRef = &'static Operator;
 
 
+impl PartialEq<str> for &Operator {
+    fn eq(&self, other: &str) -> bool {
+        self.name == other
+    }
+}
+
+
 pub static OPERATORS: [Operator; 52] = [
     // Special marker operators.
     Operator { name: "(",     precedence: Precedence::Brace  },
@@ -119,5 +126,5 @@ pub static TERMINATOR: Operator = Operator { name: "terminator", precedence: Pre
 
 pub fn find_operator(opname: &str) -> Option<OperatorRef> {
     // Linear search is fine as there aren't that many operators and their names are short.
-    OPERATORS.iter().find(|op| op.name == opname)
+    OPERATORS.iter().find(|op| op == opname)
 }
