@@ -221,7 +221,10 @@ impl<'a> Tokenizer<'a> {
 
         while could_be_operator(&start_slice[.. start_slice.len() - self.iterator.as_str().len()]) {
             self.get();
-            self.peek();
+
+            if let None = self.peek() {
+                break;
+            }
         }
 
         let opname = &start_slice[.. start_slice.len() - self.remainder.len()];
@@ -359,6 +362,28 @@ mod tests {
         assert!(matches!(t.next().unwrap(), Ok(Token::Number(_))));
 
         assert_eq!(t.next().unwrap().unwrap_err(), "Base 2 constant overflowed 64 bit range");
+
+        assert!(t.next().is_none());
+    }
+
+
+    #[test]
+    fn operators() {
+        let mut t = Tokenizer::new("x<y<=z!=");
+
+        fn expect_operator(value: Option<Result<Token, String>>, expected: &str) {
+            match value.unwrap().unwrap() {
+                Token::Operator(value) => assert_eq!(value.name, expected),
+                _ => assert!(false)
+            }
+        }  
+
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("x"))));
+        expect_operator(t.next(), "<");
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("y"))));
+        expect_operator(t.next(), "<=");
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("z"))));
+        expect_operator(t.next(), "!=");
 
         assert!(t.next().is_none());
     }
