@@ -77,7 +77,7 @@ impl Parser {
                     }
                 }
 
-                if precedence >= stack_precedence {   // todo comparable
+                if precedence >= stack_precedence {
                     break;
                 }
 
@@ -95,15 +95,14 @@ impl Parser {
 
                         self.current_value = Some(ExpressionNode::Operator { op: stack, args: vec![ self.current_value.take().unwrap() ] });
                     },
-                                        
+
                     2 => {
-                        // Binary operator.
+                        // Binary operator - or it could be adjacent ? and : which combine to form a ternary.
                         if self.current_value.is_none() || stack_value.is_none() {
                             return Err(String::from("Invalid expression hTodo."));
                         }
 
-                        self.current_value = Some(ExpressionNode::Operator { op: stack, args: vec![ stack_value.unwrap(), self.current_value.take().unwrap() ] });
-                        // TODO BinaryOrTernary(stack, stack_value, mCurrent);
+                        self.current_value = Some(binary_or_ternary(stack, stack_value.unwrap(), self.current_value.take().unwrap()));
                     },
                     
                     _ => {
@@ -140,23 +139,6 @@ impl Parser {
     }
     
     
-/*
-
-    // decide whether this is a binary or ternary operator
-    static ParseTree BinaryOrTernary(Operator op, ParseTree x, ParseTree y)
-    {
-            if (op == OpTable.QuestionMark) {
-                    ParseTreeOperator colon = y as ParseTreeOperator;
-
-                    if ((colon != null) && (colon.Operator == OpTable.Colon))
-                            return new ParseTreeOperator(OpTable.Ternary, new ParseTree[] { x, colon.Args[0], colon.Args[1] } );
-            }
-
-            return new ParseTreeOperator(op, new ParseTree[] { x, y } );
-    }
-*/
-
-
     // Decide whether we've reached the end of the expression.
     fn done_parsing(&self, tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> bool {
         if let Some(Ok(Token::Text(","))) = tokenizer.peek() {
@@ -178,6 +160,21 @@ impl Parser {
             tokenizer.peek().is_none()
         }
     }
+}
+
+
+// Decides whether we are dealing with a binary or ternary operator.
+fn binary_or_ternary(op: ops::OperatorRef, x: ExpressionNode, mut y: ExpressionNode) -> ExpressionNode {
+    if op == "?" {
+        if let ExpressionNode::Operator{op: y_op, args: ref mut y_args} = y {
+            if y_op == ":" {
+                // Merge adjacent ? and : operators into a combined ternary operator.
+                return ExpressionNode::Operator { op: &ops::TERNARY, args: vec![ x, y_args.remove(0), y_args.remove(0) ] };
+            }
+        }
+    }
+
+    ExpressionNode::Operator { op, args: vec![ x, y ] }
 }
 
 

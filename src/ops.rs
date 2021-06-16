@@ -137,9 +137,9 @@ pub static OPERATORS: [Operator; 52] = [
 
 
 // Special operators, not accessible by name.
-pub static TERMINATOR: Operator = make_op("terminator", Precedence::Terminator, 0);
-pub static NEGATE:     Operator = make_op("-",          Precedence::Unary,      1);
-// TODO Operator { name: "?:", precedence: Precedence::Ternary },
+pub static TERMINATOR: Operator = make_op("{arnie}", Precedence::Terminator, 0);
+pub static NEGATE:     Operator = make_op("-",       Precedence::Unary,      1);
+pub static TERNARY:    Operator = make_op("?:",      Precedence::Ternary,    3);
 
 
 pub fn find_operator(opname: &str) -> Option<OperatorRef> {
