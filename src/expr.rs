@@ -199,9 +199,11 @@ impl Parser {
         }
         else if is_nested {
             // Parsing x or y from something like f(x, y(z)).
-            match tokenizer.peek() {
-                Some(Ok(Token::Operator(op))) if op == ")" => !self.operator_stack.iter().any(|op| { op == "(" }),
-                _ => false
+            if peek_operator(tokenizer, ")") {
+                !self.operator_stack.iter().any(|op| { op == "(" })
+            }
+            else {
+                false
             }
         }
         else {
@@ -212,22 +214,27 @@ impl Parser {
 }
 
 
+// Checks whether the next token is the specified operator.
+fn peek_operator(tokenizer: &mut Peekable<Tokenizer>, opname: &str) -> bool {
+    match tokenizer.peek() {
+        Some(Ok(Token::Operator(op))) => op == opname,
+        _ => false
+    }
+}
+
+
 // Parses the arguments of a function call.
 fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Vec<ExpressionNode>
 {
     let args = vec![];
 
-    match tokenizer.peek() {
-        Some(Ok(Token::Operator(op))) if op == "(" => {
-            tokenizer.next();
+    if peek_operator(tokenizer, "(") {
+        tokenizer.next();
 
-            //while (tokenizer.Peek() != OpTable.CloseBrace)
-            //TODO    args.Add(new Parser(tokenizer, true).Result);
+        //while (tokenizer.Peek() != OpTable.CloseBrace)
+        //TODO    args.Add(new Parser(tokenizer, true).Result);
 
-            tokenizer.next();
-        },
-        
-        _ => {}
+        tokenizer.next();
     }
 
     args
