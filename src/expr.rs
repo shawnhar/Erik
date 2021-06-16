@@ -15,19 +15,19 @@ pub enum ExpressionNode {
 // The parser turns a series of tokens into an expression tree.
 struct Parser
 {
+    current: Option<ExpressionNode>,
     stack: Vec<(ops::OperatorRef, Option<ExpressionNode>)>,
-    current_value: Option<ExpressionNode>,
 }
 
 
 impl Parser {
     // Pushes a numeric constant onto the stack.
     fn push_constant(&mut self, value: f64) -> Result<(), String> {
-        if self.current_value.is_some() {
+        if self.current.is_some() {
             return Err(String::from("Invalid expression aTODO."));
         }
 
-        self.current_value = Some(ExpressionNode::Constant { value });
+        self.current = Some(ExpressionNode::Constant { value });
         
         Ok(())
     }
@@ -35,15 +35,15 @@ impl Parser {
 
     // Pushes a symbol reference (variable or function call) onto the stack.
     fn push_symbol(&mut self, symbol: &str, tokenizer: &mut Peekable<Tokenizer>) -> Result<(), String> {
-        if self.current_value.is_some() {
+        if self.current.is_some() {
             return Err(String::from("Invalid expression bTODO."));
         }
 
         let args = Parser::parse_arguments(tokenizer)?;
 
         match ops::find_operator(symbol) {
-            Some(op) => self.current_value = Some(ExpressionNode::Operator { op, args }),
-            None     => self.current_value = Some(ExpressionNode::Function { name: String::from(symbol), args }),
+            Some(op) => self.current = Some(ExpressionNode::Operator { op, args }),
+            None     => self.current = Some(ExpressionNode::Function { name: String::from(symbol), args }),
         }
 
         Ok(())
@@ -52,7 +52,7 @@ impl Parser {
 
     fn push_operator(&mut self, mut op: ops::OperatorRef) -> Result<(), String> {
         // Turn binary subtraction into unary negation if there is no current value.
-        if op == "-" && self.current_value.is_none() {
+        if op == "-" && self.current.is_none() {
             op = &ops::NEGATE;
         }
 
@@ -85,23 +85,23 @@ impl Parser {
                 match stack_operator.arity {
                     1 => {
                         // Unary operator.
-                        if self.current_value.is_none() || stack_value.is_some() {
+                        if self.current.is_none() || stack_value.is_some() {
                             return Err(String::from("Invalid expression uTODO."));
                         }
 
-                        self.current_value = Some(ExpressionNode::Operator {
+                        self.current = Some(ExpressionNode::Operator {
                             op: stack_operator,
-                            args: vec![ self.current_value.take().unwrap() ]
+                            args: vec![ self.current.take().unwrap() ]
                         });
                     },
 
                     2 => {
                         // Binary operator - or it could be adjacent ? and : which combine to form a ternary.
-                        if self.current_value.is_none() || stack_value.is_none() {
+                        if self.current.is_none() || stack_value.is_none() {
                             return Err(String::from("Invalid expression hTODO."));
                         }
 
-                        self.current_value = Some(Parser::binary_or_ternary(stack_operator, stack_value.unwrap(), self.current_value.take().unwrap()));
+                        self.current = Some(Parser::binary_or_ternary(stack_operator, stack_value.unwrap(), self.current.take().unwrap()));
                     },
                     
                     _ => {
@@ -111,7 +111,7 @@ impl Parser {
                         }
 
                         if op == ")" {
-                            if self.current_value.is_none() {
+                            if self.current.is_none() {
                                 return Err(String::from("Invalid expression kTODO."));
                             }
                             else {
@@ -131,7 +131,7 @@ impl Parser {
         }
         else {
             // Push onto the stack.
-            self.stack.push((op, self.current_value.take()));
+            self.stack.push((op, self.current.take()));
         }
         
         Ok(())
@@ -214,8 +214,8 @@ impl Parser {
 pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<ExpressionNode, String>
 {
     let mut parser = Parser {
+        current: None,
         stack: vec![],
-        current_value: None,
     };
 
     // Shift/reduce loop.
@@ -233,7 +233,7 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
     }
 
     // Flush the stack.
-    if parser.current_value.is_none() {
+    if parser.current.is_none() {
         return Err(String::from("Invalid expression yTODO."));
     }
 
