@@ -25,7 +25,7 @@ impl Parser {
     // Pushes a numeric constant onto the stack.
     fn push_constant(&mut self, value: f64) -> Result<(), String> {
         if self.current_value.is_some() {
-            return Err(String::from("Invalid expression aTodo."));
+            return Err(String::from("Invalid expression aTODO."));
         }
 
         self.current_value = Some(ExpressionNode::Constant { value });
@@ -37,7 +37,7 @@ impl Parser {
     // Pushes a symbol reference (variable or function call) onto the stack.
     fn push_symbol(&mut self, symbol: &str, tokenizer: &mut Peekable<Tokenizer>) -> Result<(), String> {
         if self.current_value.is_some() {
-            return Err(String::from("Invalid expression bTodo."));
+            return Err(String::from("Invalid expression bTODO."));
         }
 
         let args = parse_arguments(tokenizer)?;
@@ -90,7 +90,7 @@ impl Parser {
                     1 => {
                         // Unary operator.
                         if self.current_value.is_none() || stack_value.is_some() {
-                            return Err(String::from("Invalid expression iTodo."));
+                            return Err(String::from("Invalid expression uTODO."));
                         }
 
                         self.current_value = Some(ExpressionNode::Operator { op: stack, args: vec![ self.current_value.take().unwrap() ] });
@@ -99,7 +99,7 @@ impl Parser {
                     2 => {
                         // Binary operator - or it could be adjacent ? and : which combine to form a ternary.
                         if self.current_value.is_none() || stack_value.is_none() {
-                            return Err(String::from("Invalid expression hTodo."));
+                            return Err(String::from("Invalid expression hTODO."));
                         }
 
                         self.current_value = Some(binary_or_ternary(stack, stack_value.unwrap(), self.current_value.take().unwrap()));
@@ -108,12 +108,12 @@ impl Parser {
                     _ => {
                         // Match open and close braces.
                         if stack != "(" || stack_value.is_some() {
-                            return Err(String::from("Invalid expression jTodo."));
+                            return Err(String::from("Invalid expression jTODO."));
                         }
 
                         if op == ")" {
                             if self.current_value.is_none() {
-                                return Err(String::from("Invalid expression kTodo."));
+                                return Err(String::from("Invalid expression kTODO."));
                             }
 
                             return Ok(());
@@ -126,7 +126,7 @@ impl Parser {
         if op == ")" {
             // Swallow close braces, but not too many.
             if self.operator_stack.is_empty() {
-                return Err(String::from("Invalid expression iTodo."));
+                return Err(String::from("Invalid expression iTODO."));
             }
         }
         else {
