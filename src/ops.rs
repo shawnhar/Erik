@@ -28,7 +28,7 @@ pub struct Operator {
 
 
 pub static OPERATORS: [Operator; 56] = [
-    // Mpecial marker operators.
+    // Special marker operators.
     Operator { name: "(",     precedence: Precedence::Brace  },
     Operator { name: ")",     precedence: Precedence::Brace  },
     Operator { name: "=",     precedence: Precedence::Assign },
@@ -111,3 +111,8 @@ pub static OPERATORS: [Operator; 56] = [
     Operator { name: "e",     precedence: Precedence::None },
     Operator { name: "pi",    precedence: Precedence::None },
 ];
+
+
+pub fn find_operator(opname: &str) -> Option<&'static Operator> {
+    OPERATORS.iter().find(|op| op.name == opname)
+}

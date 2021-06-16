@@ -229,7 +229,7 @@ impl<'a> Tokenizer<'a> {
 
         let opname = &start_slice[.. start_slice.len() - self.remainder.len()];
 
-        match ops::OPERATORS.iter().find(|op| op.name == opname) {
+        match ops::find_operator(opname) {
             Some(operator) => Some(Token::Operator(operator)),
             None => None
         }
