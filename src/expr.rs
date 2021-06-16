@@ -51,93 +51,97 @@ impl Parser {
     }
 
 
-    fn push_operator(&self, op: ops::OperatorRef) -> Result<(), String> {
+    fn push_operator(&mut self, mut op: ops::OperatorRef) -> Result<(), String> {
+        // Special case to handle unary negation versus binary subtraction.
+        if op == "-" && self.current_value.is_none() {
+            op = &ops::NEGATE;
+        }
+
+        // Reduce the precedence stack
+        if op != "(" {
+            let precedence = op.precedence as u32;
+
+            while !self.operator_stack.is_empty() {
+                // Compare precedence with the operator on top of the stack.
+                let stack = self.operator_stack.last().unwrap();
+
+                let mut stack_precedence = stack.precedence as u32;
+
+                if stack.arity != 1 {
+                    if op.arity == 1 {
+                        break;
+                    }
+
+                    if !stack.right_assoc {
+                        stack_precedence = stack_precedence + 1;
+                    }
+                }
+
+                if precedence >= stack_precedence {   // todo comparable
+                    break;
+                }
+
+                // Pop from the stack.
+                let stack = self.operator_stack.pop().unwrap();
+
+                let stack_value = self.value_stack.pop();
+
+                match stack.arity {
+    
+                    1 => {
+                        // Unary operator.
+                        if self.current_value.is_none() || stack_value.is_some() {
+                            return Err(String::from("Invalid expression iTodo."));
+                        }
+
+                        self.current_value = Some(ExpressionNode::Operator { op, args: vec![ self.current_value.take().unwrap() ] });
+                    },
+                                        
+                    2 => {
+                        // Binary operator.
+                        if self.current_value.is_none() || stack_value.is_none() {
+                            return Err(String::from("Invalid expression hTodo."));
+                        }
+
+                        self.current_value = Some(ExpressionNode::Operator { op, args: vec![ stack_value.unwrap(), self.current_value.take().unwrap() ] });
+                        // TODO BinaryOrTernary(stack, stack_value, mCurrent);
+                    },
+                    
+                    _ => {
+                        // Match open and close braces.
+                        if stack != "(" || stack_value.is_some() {
+                            return Err(String::from("Invalid expression jTodo."));
+                        }
+
+                        if op == ")" {
+                            if self.current_value.is_none() {
+                                return Err(String::from("Invalid expression kTodo."));
+                            }
+
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+        }
+
+        if op == ")" {
+            // Swallow close braces, but not too many.
+            if self.operator_stack.is_empty() {
+                return Err(String::from("Invalid expression iTodo."));
+            }
+        }
+        else {
+            // Push onto the stack.
+            self.operator_stack.push(op);
+            self.value_stack.push(self.current_value.take().unwrap());
+        }
+        
         Ok(())
     }
     
     
 /*
-    // push an operator onto the stack
-    void PushOperator(Operator op)
-    {
-            // bodge to handle unary negation versus binary subtraction
-            if ((op == OpTable.Subtract) && (mCurrent == null))
-                    op = OpTable.UnaryNegate;
-
-            // reduce the precedence stack
-            if (op != OpTable.OpenBrace) {
-                    Ops.Precedence precedence = op.Precedence;
-
-                    while (mOperators.Count > 0) {
-                            // compare precedence with the operator on top of the stack
-                            Operator stack = mOperators.Peek();
-
-                            Ops.Precedence stackPrecedence = stack.Precedence;
-
-                            if (stack.Arity != 1) {
-                                    if (op.Arity == 1)
-                                            break;
-
-                                    if (!stack.RightAssociative)
-                                            stackPrecedence++;
-                            }
-
-                            if (precedence >= stackPrecedence)
-                                    break;
-
-                            // pop from the stack
-                            mOperators.Pop();
-
-                            ParseTree stackValue = mValues.Pop();
-
-                            switch (stack.Arity) {
-
-                                    case 1:
-                                            // unary operator
-                                            if ((mCurrent == null) || (stackValue != null))
-                                                    throw ParseError();
-
-                                            mCurrent = new ParseTreeOperator(stack, new ParseTree[] { mCurrent } );
-                                            break;
-
-                                    case 2:
-                                            // binary operator
-                                            if ((mCurrent == null) || (stackValue == null))
-                                                    throw ParseError();
-
-                                            mCurrent = BinaryOrTernary(stack, stackValue, mCurrent);
-                                            break;
-
-                                    default:
-                                            // match open and close braces
-                                            if ((stack != OpTable.OpenBrace) || (stackValue != null))
-                                                    throw ParseError();
-
-                                            if (op == OpTable.CloseBrace) {
-                                                    if (mCurrent == null)
-                                                            throw ParseError();
-
-                                                    return;
-                                            }
-                                            else
-                                                    break;
-                            }
-                    }
-            }
-
-            if (op == OpTable.CloseBrace) {
-                    // swallow close braces, but not too many
-                    if (mOperators.Count <= 0)
-                            throw ParseError();
-            }
-            else {
-                    // push onto the stack
-                    mOperators.Push(op);
-                    mValues.Push(mCurrent);
-                    mCurrent = null;
-            }
-    }
-
 
     // decide whether this is a binary or ternary operator
     static ParseTree BinaryOrTernary(Operator op, ParseTree x, ParseTree y)

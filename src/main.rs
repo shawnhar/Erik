@@ -24,7 +24,9 @@ fn main() {
 fn evaluate(line: &str) -> Result<(), String> {
     let mut tokenizer = Tokenizer::new(&line).peekable();
 
-    expr::parse_expression(&mut tokenizer, false)?;
+    let expression = expr::parse_expression(&mut tokenizer, false)?;
+    
+    println!("{:#?}", expression);
 
     Ok(())
 }
