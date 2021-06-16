@@ -27,7 +27,7 @@ pub struct Operator {
 }
 
 
-pub static OPERATORS: [Operator; 53] = [
+pub static OPERATORS: [Operator; 52] = [
     // Special marker operators.
     Operator { name: "(",     precedence: Precedence::Brace  },
     Operator { name: ")",     precedence: Precedence::Brace  },
@@ -38,7 +38,6 @@ pub static OPERATORS: [Operator; 53] = [
     Operator { name: ":",     precedence: Precedence::Ternary },
 
     // Lazily evaluated logical operators.
-    // TODO Operator { name: "", precedence: Precedence::Ternary },
     Operator { name: "||",    precedence: Precedence::LogicalOr  },
     Operator { name: "&&",    precedence: Precedence::LogicalAnd },
 
@@ -70,7 +69,6 @@ pub static OPERATORS: [Operator; 53] = [
     // Negation.
     Operator { name: "!",     precedence: Precedence::Unary },
     Operator { name: "~",     precedence: Precedence::Unary },
-    Operator { name: "neg",   precedence: Precedence::Unary },
 
     // Raise to a power.
     Operator { name: "^",     precedence: Precedence::Power },
@@ -110,6 +108,12 @@ pub static OPERATORS: [Operator; 53] = [
 ];
 
 
+// Special operators, not accessed by name.
+// pub static NEGATE: Operator = Operator { name: "", precedence: Precedence::Unary };
+// TODO Operator { name: "", precedence: Precedence::Ternary },
+
+
 pub fn find_operator(opname: &str) -> Option<&'static Operator> {
+    // Linear search is fine as there aren't that many operators and their names are short.
     OPERATORS.iter().find(|op| op.name == opname)
 }
