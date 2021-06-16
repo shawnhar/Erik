@@ -43,11 +43,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                     return Some(Ok(self.read_quoted()));
                 }
 
-                // TODO a special operator?
-                //object op = ReadOperator();
-
-                //if (op != null)
-                  //      return op;
+                // TODO handle operators
 
                 // Unknown single character.
                 return Some(Ok(self.read_unknown_character()));
@@ -158,7 +154,7 @@ impl<'a> Tokenizer<'a> {
 
                 match value.checked_mul(base as u64) {
                     Some(new_value) => value = new_value,
-                    None => return Err(format!("Base {} constant overflowed 64 bits", base))
+                    None => return Err(format!("Base {} constant overflowed 64 bit range", base))
                 }
                 
                 value |= digit as u64;
@@ -208,32 +204,135 @@ impl<'a> Tokenizer<'a> {
         self.get();
         Token::Text(&start_slice[.. start_slice.len() - self.remainder.len()])
     }
+}
 
 
-/*
-        // check if this could be an operator
-        bool CouldBeOperator(string s)
-        {
-                foreach (string t in mOperators.Keys) {
-                        if (t.StartsWith(s))
-                                return true;
-                }
-
-                return false;
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
 
+    #[test]
+    fn get_and_peek() {
+        let mut t = Tokenizer::new("abc");
+        
+        assert_eq!(t.remainder, "abc");
+        
+        assert_eq!(t.get().unwrap(), 'a');
+        assert_eq!(t.remainder, "bc");
 
-        // read an operator
-        object ReadOperator()
-        {
-                string s = "";
+        assert_eq!(t.peek().unwrap(), 'b');
+        assert_eq!(t.remainder, "bc");
 
-                while (CouldBeOperator(s + Peek()))
-                        s += Next();
+        assert_eq!(t.peek().unwrap(), 'b');
+        assert_eq!(t.remainder, "bc");
 
-                return mOperators[s];
-        }
-        */
+        assert_eq!(t.get().unwrap(), 'b');
+        assert_eq!(t.remainder, "c");
 
+        assert_eq!(t.get().unwrap(), 'c');
+        assert_eq!(t.remainder, "");
+
+        assert!(t.get() == None);
+        assert!(t.peek() == None);
+    }
+
+
+    #[test]
+    fn whitespace_and_barewords() {
+        let mut t = Tokenizer::new("   hello  t  - %@ ");
+        
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("hello"))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("t"))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("-"))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("%"))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("@"))));
+
+        assert!(t.next().is_none());
+    }
+
+
+    #[test]
+    fn quoted_strings() {
+        let mut t = Tokenizer::new("   ' a b '  \"what's up\"  'unclosed ");
+        
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text(" a b "))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("what's up"))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("unclosed "))));
+
+        assert!(t.next().is_none());
+    }
+
+
+    #[test]
+    fn floats() {
+        let mut t = Tokenizer::new("1 100 0.5 3.14 .6 007 10e4 10e-3 1.5e2 0.5x -10 3ee2 3..14");
+
+        fn expect_number(value: Option<Result<Token, String>>, expected: f64) {
+            match value.unwrap().unwrap() {
+                Token::Number(value) => assert_eq!(value, expected),
+                _ => assert!(false)
+            }
+        }  
+      
+        expect_number(t.next(), 1.0);
+        expect_number(t.next(), 100.0);
+        expect_number(t.next(), 0.5);
+        expect_number(t.next(), 3.14);
+        expect_number(t.next(), 0.6);
+        expect_number(t.next(), 7.0);
+        expect_number(t.next(), 100000.0);
+        expect_number(t.next(), 0.01);
+        expect_number(t.next(), 150.0);
+
+        expect_number(t.next(), 0.5);
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("x"))));
+
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("-"))));
+        expect_number(t.next(), 10.0);
+
+        assert_eq!(t.next().unwrap().unwrap_err(), "Invalid numeric constant '3ee2'");
+        assert_eq!(t.next().unwrap().unwrap_err(), "Invalid numeric constant '3..14'");
+
+        assert!(t.next().is_none());
+    }
+
+
+    #[test]
+    fn hexadecimal() {
+        let mut t = Tokenizer::new("0x 0x0 0x1 0xDeadBeef 0x123456789ABCDEF 0xffffffffffffffff 0xfeedme 0x10000000000000000");
+
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0u64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0u64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(1u64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0xDEADBEEFu64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0x123456789ABCDEFu64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0xFFFFFFFFFFFFFFFFu64))));
+
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0xFEEDu64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Text("me"))));
+
+        assert_eq!(t.next().unwrap().unwrap_err(), "Base 16 constant overflowed 64 bit range");
+
+        assert!(t.next().is_none());
+    }
+
+
+    #[test]
+    fn binary() {
+        let mut t = Tokenizer::new("0b 0b0 0b1 0b01101100 0b1111111111111111111111111111111111111111111111111111111111111111 0b102 0b10000000000000000000000000000000000000000000000000000000000000000");
+
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0u64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0u64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(1u64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0x6Cu64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(0xFFFFFFFFFFFFFFFFu64))));
+
+        assert!(matches!(t.next().unwrap(), Ok(Token::Integer(2u64))));
+        assert!(matches!(t.next().unwrap(), Ok(Token::Number(_))));
+
+        assert_eq!(t.next().unwrap().unwrap_err(), "Base 2 constant overflowed 64 bit range");
+
+        assert!(t.next().is_none());
+    }
 }

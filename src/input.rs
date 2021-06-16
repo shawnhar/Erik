@@ -52,16 +52,18 @@ impl IntoIterator for InputSource {
 mod tests {
     use super::*;
 
+
     #[test]
-    fn test_no_args() {
+    fn no_args() {
         let input = InputSource::new(vec![]);
         let mut iter = input.into_iter();
 
         assert!(iter.next() == None);
     }
 
+
     #[test]
-    fn test_one_arg() {
+    fn one_arg() {
         let input = InputSource::new(vec![ String::from("Hello") ]);
         let mut iter = input.into_iter();
 
@@ -69,8 +71,9 @@ mod tests {
         assert!(iter.next() == None);
     }
 
+
     #[test]
-    fn test_two_args() {
+    fn two_args() {
         let input = InputSource::new(vec![ String::from("Hello"), String::from("World") ]);
         let mut iter = input.into_iter();
 
@@ -78,8 +81,9 @@ mod tests {
         assert!(iter.next() == None);
     }
 
+
     #[test]
-    fn test_one_arg_file_exists() {
+    fn one_arg_file_exists() {
         fs::write("args.txt", "This\nis a\ntest").unwrap();
 
         let input = InputSource::new(vec![ String::from("args.txt") ]);
@@ -93,8 +97,9 @@ mod tests {
         fs::remove_file("args.txt").unwrap();
     }
 
+
     #[test]
-    fn test_two_args_file_exists() {
+    fn two_args_file_exists() {
         fs::write("args2.txt", "This\nis a\ntest").unwrap();
 
         let input = InputSource::new(vec![ String::from("args.txt"), String::from("another") ]);
