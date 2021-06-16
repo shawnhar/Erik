@@ -15,7 +15,7 @@ fn main() {
 
     for line in input {
         if let Err(message) = evaluate(&line) {
-            println!("Error: {}", message);
+            println!("{}", message);
         }
     }
 }

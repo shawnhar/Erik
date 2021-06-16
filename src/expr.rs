@@ -40,7 +40,7 @@ impl Parser {
             return Err(String::from("Invalid expression bTODO."));
         }
 
-        let args = parse_arguments(tokenizer)?;
+        let args = Parser::parse_arguments(tokenizer)?;
 
         match ops::find_operator(symbol) {
             Some(op) => self.current_value = Some(ExpressionNode::Operator { op, args }),
@@ -52,48 +52,49 @@ impl Parser {
 
 
     fn push_operator(&mut self, mut op: ops::OperatorRef) -> Result<(), String> {
-        // Special case to handle unary negation versus binary subtraction.
+        // Turn binary subtraction into unary negation if there is no current value.
         if op == "-" && self.current_value.is_none() {
             op = &ops::NEGATE;
         }
 
-        // Reduce the precedence stack
+        // Reduce the operator stack according to precedence.
         if op != "(" {
-            let precedence = op.precedence as u32;
+            let operator_precedence = op.precedence as u32;
 
             while !self.operator_stack.is_empty() {
                 // Compare precedence with the operator on top of the stack.
-                let stack = self.operator_stack.last().unwrap();
+                let stack_operator = self.operator_stack.last().unwrap();
+                let mut stack_precedence = stack_operator.precedence as u32;
 
-                let mut stack_precedence = stack.precedence as u32;
-
-                if stack.arity != 1 {
+                if stack_operator.arity != 1 {
                     if op.arity == 1 {
                         break;
                     }
 
-                    if !stack.is_right_associative {
+                    if !stack_operator.is_right_associative {
                         stack_precedence = stack_precedence + 1;
                     }
                 }
 
-                if precedence >= stack_precedence {
+                if operator_precedence >= stack_precedence {
                     break;
                 }
 
-                // Pop from the stack.
-                let stack = self.operator_stack.pop().unwrap();
+                // Pop from the stack, taking ownership where we were previously just examining a borrow.
+                let stack_operator = self.operator_stack.pop().unwrap();
                 let stack_value = self.value_stack.pop().unwrap();
 
-                match stack.arity {
-    
+                match stack_operator.arity {
                     1 => {
                         // Unary operator.
                         if self.current_value.is_none() || stack_value.is_some() {
                             return Err(String::from("Invalid expression uTODO."));
                         }
 
-                        self.current_value = Some(ExpressionNode::Operator { op: stack, args: vec![ self.current_value.take().unwrap() ] });
+                        self.current_value = Some(ExpressionNode::Operator {
+                            op: stack_operator,
+                            args: vec![ self.current_value.take().unwrap() ]
+                        });
                     },
 
                     2 => {
@@ -102,12 +103,12 @@ impl Parser {
                             return Err(String::from("Invalid expression hTODO."));
                         }
 
-                        self.current_value = Some(binary_or_ternary(stack, stack_value.unwrap(), self.current_value.take().unwrap()));
+                        self.current_value = Some(Parser::binary_or_ternary(stack_operator, stack_value.unwrap(), self.current_value.take().unwrap()));
                     },
                     
                     _ => {
                         // Match open and close braces.
-                        if stack != "(" || stack_value.is_some() {
+                        if stack_operator != "(" || stack_value.is_some() {
                             return Err(String::from("Invalid expression jTODO."));
                         }
 
@@ -115,8 +116,9 @@ impl Parser {
                             if self.current_value.is_none() {
                                 return Err(String::from("Invalid expression kTODO."));
                             }
-
-                            return Ok(());
+                            else {
+                                return Ok(());
+                            }
                         }
                     }
                 }
@@ -137,8 +139,46 @@ impl Parser {
         
         Ok(())
     }
-    
-    
+
+
+    // Decides whether we are dealing with a binary or ternary operator.
+    fn binary_or_ternary(op: ops::OperatorRef, x: ExpressionNode, mut y: ExpressionNode) -> ExpressionNode {
+        if op == "?" {
+            if let ExpressionNode::Operator{op: y_op, args: ref mut y_args} = y {
+                if y_op == ":" {
+                    // Merge adjacent ? and : operators into a combined ternary operator.
+                    return ExpressionNode::Operator {
+                        op: &ops::TERNARY,
+                        args: vec![ x, y_args.remove(0), y_args.remove(0) ]
+                    };
+                }
+            }
+        }
+
+        // It's a regular binary operator.
+        ExpressionNode::Operator { op, args: vec![ x, y ] }
+    }
+
+
+    // Parses the arguments of a function call.
+    fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Result<Vec<ExpressionNode>, String>
+    {
+        let mut args = vec![];
+
+        if Parser::peek_operator(tokenizer, "(") {
+            tokenizer.next();
+
+            while !Parser::peek_operator(tokenizer, ")") {
+                args.push(parse_expression(tokenizer, true)?);
+            }
+
+            tokenizer.next();
+        }
+
+        Ok(args)
+    }
+
+
     // Decide whether we've reached the end of the expression.
     fn done_parsing(&self, tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> bool {
         if let Some(Ok(Token::Text(","))) = tokenizer.peek() {
@@ -148,7 +188,8 @@ impl Parser {
         }
         else if is_nested {
             // Parsing x or y from something like f(x, y(z)).
-            if peek_operator(tokenizer, ")") {
+            // Closing parenthisis terminates only if there are no open parens on the stack.
+            if Parser::peek_operator(tokenizer, ")") {
                 !self.operator_stack.iter().any(|op| { op == "(" })
             }
             else {
@@ -156,53 +197,19 @@ impl Parser {
             }
         }
         else {
-            // Parsing the top level expression.
+            // When parsing a top level expression, we're done if the input runs out.
             tokenizer.peek().is_none()
         }
     }
-}
 
 
-// Decides whether we are dealing with a binary or ternary operator.
-fn binary_or_ternary(op: ops::OperatorRef, x: ExpressionNode, mut y: ExpressionNode) -> ExpressionNode {
-    if op == "?" {
-        if let ExpressionNode::Operator{op: y_op, args: ref mut y_args} = y {
-            if y_op == ":" {
-                // Merge adjacent ? and : operators into a combined ternary operator.
-                return ExpressionNode::Operator { op: &ops::TERNARY, args: vec![ x, y_args.remove(0), y_args.remove(0) ] };
-            }
+    // Checks whether the next token is the specified operator.
+    fn peek_operator(tokenizer: &mut Peekable<Tokenizer>, opname: &str) -> bool {
+        match tokenizer.peek() {
+            Some(Ok(Token::Operator(op))) => op == opname,
+            _ => false
         }
     }
-
-    ExpressionNode::Operator { op, args: vec![ x, y ] }
-}
-
-
-// Checks whether the next token is the specified operator.
-fn peek_operator(tokenizer: &mut Peekable<Tokenizer>, opname: &str) -> bool {
-    match tokenizer.peek() {
-        Some(Ok(Token::Operator(op))) => op == opname,
-        _ => false
-    }
-}
-
-
-// Parses the arguments of a function call.
-fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Result<Vec<ExpressionNode>, String>
-{
-    let mut args = vec![];
-
-    if peek_operator(tokenizer, "(") {
-        tokenizer.next();
-
-        while !peek_operator(tokenizer, ")") {
-            args.push(parse_expression(tokenizer, true)?);
-        }
-
-        tokenizer.next();
-    }
-
-    Ok(args)
 }
 
 
