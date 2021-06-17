@@ -1,5 +1,5 @@
 // Ordering of these enum values determines parser behavior.
-#[derive(Copy, Clone)]
+#[derive(Clone, Copy, Debug)]
 pub enum Precedence {
     None,
     Brace,
@@ -22,6 +22,7 @@ pub enum Precedence {
 
 
 // Implementation of an operator or built-in function.
+#[derive(Debug)]
 pub struct Operator {
     pub name: &'static str,
     pub precedence: Precedence,

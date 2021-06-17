@@ -5,6 +5,7 @@ use crate::tokens::{Token, Tokenizer};
 
 
 // Expressions are represented as a tree of nodes.
+#[derive(Debug)]
 pub enum ExpressionNode {
     Constant { value: f64 },
     Operator { op: ops::OperatorRef, args: Vec<ExpressionNode> },
@@ -43,7 +44,7 @@ impl Parser {
     // Pushes a numeric constant onto the stack.
     fn push_constant(&mut self, value: f64) -> Result<(), String> {
         if self.current.is_some() {
-            return Err(String::from("Invalid expression aTODO."));
+            return Err(format!("Invalid expression: expecting operator but got '{}'.", value));
         }
 
         self.current = Some(ExpressionNode::Constant { value });
@@ -55,7 +56,7 @@ impl Parser {
     // Pushes a symbol reference (variable or function call) onto the stack.
     fn push_symbol(&mut self, symbol: &str, tokenizer: &mut Peekable<Tokenizer>) -> Result<(), String> {
         if self.current.is_some() {
-            return Err(String::from("Invalid expression bTODO."));
+            return Err(format!("Invalid expression: expecting operator but got '{}'.", symbol));
         }
 
         let args = Parser::parse_arguments(tokenizer)?;
@@ -116,7 +117,7 @@ impl Parser {
                             (Some(current), None) => {
                                 self.current = Some(ExpressionNode::Operator { op: stack_op, args: vec![ current ] });
                             },
-                            _ => return Err(String::from("Invalid expression uTODO."))
+                            _ => return Err(format!("Invalid expression: unary {} operator is missing an operand.", stack_op.name))
                         }
                     },
 
@@ -126,19 +127,19 @@ impl Parser {
                             (Some(current), Some(stack)) => {
                                 self.current = Some(Parser::binary_or_ternary(stack_op, stack, current));
                             },
-                            _ => return Err(String::from("Invalid expression hTODO."))
+                            _ => return Err(format!("Invalid expression: binary {} operator is missing an operand.", stack_op.name))
                         }
                     },
                     
                     _ => {
                         // Match open and close braces.
                         if stack_op != "(" || stack_value.is_some() {
-                            return Err(String::from("Invalid expression jTODO."));
+                            return Err(String::from("Invalid expression: unexpected open parenthesis."));
                         }
 
                         if op == ")" {
                             if self.current.is_none() {
-                                return Err(String::from("Invalid expression kTODO."));
+                                return Err(String::from("Invalid expression: unexpected close parenthesis."));
                             }
                             else {
                                 return Ok(());
@@ -152,7 +153,7 @@ impl Parser {
         if op == ")" {
             // Swallow close braces, but not too many.
             if self.stack.is_empty() {
-                return Err(String::from("Invalid expression iTODO."));
+                return Err(String::from("Invalid expression: too many close parentheses."));
             }
         }
         else {
@@ -253,20 +254,20 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
                     Token::Operator(op)  => parser.push_operator(op)?,
                 }
             },
-            None => return Err(String::from("Invalid expression xTODO."))
+            None => return Err(String::from("Invalid expression: unexpected end of input."))
         }
     }
 
     // Collapse the stack.
     if parser.current.is_none() {
-        return Err(String::from("Invalid expression yTODO."));
+        return Err(String::from("Invalid expression: unexpected end of input."));
     }
 
     parser.push_operator(&ops::TERMINATOR)?;
 
     // We should now have just one item left.
     if parser.stack.len() != 1 {
-        return Err(String::from("Invalid expression zTODO."));
+        return Err(String::from("Invalid expression: unexpected end of input."));
     }
 
     Ok(parser.stack.pop().unwrap().1.unwrap())
@@ -275,10 +276,94 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
 
 
     #[test]
-    fn foo() {
+    fn parse_expressions() {
+        test_parse("23", "23");
+        test_parse("1+2", "+(1,2)");
+        test_parse("1+2+3", "+(+(1,2),3)");
+        test_parse("1*2+3", "+(*(1,2),3)");
+        test_parse("1+2*3", "+(1,*(2,3))");
+        test_parse("(1*2)+3", "+(*(1,2),3)");
+        test_parse("(1+(2*3))", "+(1,*(2,3))");
+        test_parse("1*(2+3)", "*(1,+(2,3))");
+        test_parse("(1+2)*3", "*(+(1,2),3)");
+        test_parse("1+2==3<sqrt(10)^5", "==(+(1,2),<(3,^(sqrt(10),5)))");
+        test_parse("e", "e()");
+        test_parse("sin(e())", "sin(e())");
+        test_parse("max(1,2)", "max(1,2)");
+        test_parse("foo(1,2,3,4)", "foo(1,2,3,4)");
+        test_parse("foo(1,bar(x,y+foo(bar())))", "foo(1,bar(x(),+(y(),foo(bar()))))");
+    }
+
+
+    #[test]
+    fn parse_unary_negate() {
+        test_parse("-23", "-(23)");
+        test_parse("1-2", "-(1,2)");
+        test_parse("1--2", "-(1,-(2))");
+        test_parse("-1-2", "-(-(1),2)");
+        test_parse("-1--2---3", "-(-(-(1),-(2)),-(-(3)))");
+    }
+
+
+    #[test]
+    fn parse_ternary() {
+        test_parse("1?2:3", "?:(1,2,3)");
+        test_parse("1 == 2 ? 3 + 4 : 5", "?:(==(1,2),+(3,4),5)");
+    }
+
+
+    #[test]
+    fn parse_commas_terminate() {
+        test_parse("1+2,3", "+(1,2)");
+    }
+
+
+    #[test]
+    fn parse_errors() {
+        test_error("1 2", "Invalid expression: expecting operator but got '2'.");
+        test_error("e pi", "Invalid expression: expecting operator but got 'pi'.");
+        test_error("foo() bar()", "Invalid expression: expecting operator but got 'bar'.");
+
+        test_error("e(1)", "Wrong number of arguments for e(): expected 0 but got 1.");
+        test_error("e(1,2,3)", "Wrong number of arguments for e(): expected 0 but got 3.");
+        test_error("sin()", "Wrong number of arguments for sin(): expected 1 but got 0.");
+        test_error("sin(1,2)", "Wrong number of arguments for sin(): expected 1 but got 2.");
+        test_error("max()", "Wrong number of arguments for max(): expected 2 but got 0.");
+        test_error("max(1)", "Wrong number of arguments for max(): expected 2 but got 1.");
+        test_error("max(1,2,3)", "Wrong number of arguments for max(): expected 2 but got 3.");
+
+        test_error("1ee2", "Invalid numeric constant '1ee2'.");
+        test_error("sin(1ee2)", "Invalid numeric constant '1ee2'.");
+
+        test_error("!+", "Invalid expression: unary ! operator is missing an operand.");
+        test_error("++", "Invalid expression: binary + operator is missing an operand.");
+
+        test_error("1()", "Invalid expression: unexpected open parenthesis.");
+        test_error("()", "Invalid expression: unexpected close parenthesis.");
+        test_error(")", "Invalid expression: too many close parentheses.");
+        test_error("x(y+z)/sqrt(10))+2", "Invalid expression: too many close parentheses.");
+
+        test_error("x+", "Invalid expression: unexpected end of input.");
+        test_error("sqrt(", "Invalid expression: unexpected end of input.");
+        test_error("(1", "Invalid expression: unexpected end of input.");
+    }
+
+
+    fn test_parse(expression: &str, expected: &str) {
+        let mut tokenizer = Tokenizer::new(expression).peekable();
+        let expression = parse_expression(&mut tokenizer, false).unwrap();
+        let result = format!("{}", expression);
+        assert_eq!(result, expected);
+    }
+
+
+    fn test_error(expression: &str, expected_error: &str) {
+        let mut tokenizer = Tokenizer::new(expression).peekable();
+        let error = parse_expression(&mut tokenizer, false).unwrap_err();
+        assert_eq!(error, expected_error);
     }
 }

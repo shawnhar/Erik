@@ -3,6 +3,7 @@ use crate::ops;
 
 
 // Before parsing, input strings are tokenized into a linear sequence of these enums.
+#[derive(Debug)]
 pub enum Token<'a> {
     Number(f64),
     Text(&'a str),
