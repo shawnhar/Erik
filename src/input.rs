@@ -1,20 +1,30 @@
 use std::fs;
+use std::io;
+use std::io::Write;
 
 
 pub struct InputSource {
-    source_text: Vec<String>
+    text: Option<Vec<String>>
 }
 
 
 impl InputSource {
     pub fn new(args: Vec<String>) -> InputSource {
-        // Should we read an argument file, or use the commandline arguments directly?
-        let source_text = match read_arg_file(&args) {
-            Some(arg_file_contents) => arg_file_contents,
-            None => if args.len() > 0 {vec![args.join(" ")] } else { vec![] }
-        };
+        if args.len() == 0 {
+            // Reading from an interactive console.
+            InputSource { text: None }
+        }
+        else {
+            // Should we read an argument file, or use the commandline arguments directly?
+            let mut text = match read_arg_file(&args) {
+                Some(arg_file_contents) => arg_file_contents,
+                None => vec![ args.join(" ") ]
+            };
 
-        InputSource { source_text }
+            text.reverse();
+
+            InputSource { text: Some(text) }
+        }
     }
 }
 
@@ -37,13 +47,34 @@ fn read_arg_file(args: &[String]) -> Option<Vec<String>> {
 }
 
 
-// Iterating over the input source will yield a series of strings.
-impl IntoIterator for InputSource {
+// Iterating over the input source yields a series of strings.
+impl Iterator for InputSource {
     type Item = String;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.source_text.into_iter()
+
+    fn next(&mut self) -> Option<String> {
+        match &mut self.text {
+            Some(text) => {
+                // Return text from commandline or argument file.
+                text.pop()
+            },
+            
+            None => {
+                // Read text from the console.
+                print!("\n> ");
+
+                if io::stdout().flush().is_err() {
+                    return None;
+                }
+
+                let mut line = String::new();
+
+                match io::stdin().read_line(&mut line) {
+                    Ok(_) if !line.trim().is_empty() => Some(line),
+                    _ => None
+                }
+            }
+        }
     }
 }
 
@@ -51,15 +82,6 @@ impl IntoIterator for InputSource {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-
-    #[test]
-    fn no_args() {
-        let input = InputSource::new(vec![]);
-        let mut iter = input.into_iter();
-
-        assert!(iter.next() == None);
-    }
 
 
     #[test]
