@@ -287,8 +287,8 @@ pub fn evaluate(expression: &ExpressionNode) -> f64 {
 fn evaluate_operator(op: ops::OperatorRef, args: &Vec<ExpressionNode>) -> f64 {
     match op.function {
         ops::OpFunction::Nullary(function) => function(),
-        ops::OpFunction::Unary(function)   => function(evaluate(&args[0])),
-        ops::OpFunction::Binary(function)  => function(evaluate(&args[0]), evaluate(&args[1])),
+        ops::OpFunction::Unary  (function) => function(evaluate(&args[0])),
+        ops::OpFunction::Binary (function) => function(evaluate(&args[0]), evaluate(&args[1])),
 
         ops::OpFunction::Lazy(function) => {
             let arg0 = evaluate(&args[0]);
@@ -302,7 +302,7 @@ fn evaluate_operator(op: ops::OperatorRef, args: &Vec<ExpressionNode>) -> f64 {
             }
         },
 
-        ops::OpFunction::Invalid           => panic!("should have better error handling here")
+        ops::OpFunction::Invalid => panic!("should have better error handling here")
     }
 }
 
