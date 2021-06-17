@@ -178,7 +178,7 @@ impl<'a> Tokenizer<'a> {
     fn read_bareword(&mut self) -> Token<'a> {
         let start_slice = self.remainder;
 
-        while matches!(self.peek(), Some(char) if char.is_alphabetic() || char == '_') {
+        while matches!(self.peek(), Some(char) if char.is_alphanumeric() || char == '_') {
             self.get();
         }
 
