@@ -193,7 +193,7 @@ impl Parser {
             tokenizer.next();
 
             while !Parser::peek_operator(tokenizer, ")") {
-                args.push(parse_expression(tokenizer, true)?);
+                args.push(parse(tokenizer, true)?);
             }
 
             tokenizer.next();
@@ -238,7 +238,7 @@ impl Parser {
 
 
 // The main expression parser.
-pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<ExpressionNode, String>
+pub fn parse(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<ExpressionNode, String>
 {
     let mut parser = Parser {
         current: None,
@@ -271,6 +271,39 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
     }
 
     Ok(parser.stack.pop().unwrap().1.unwrap())
+}
+
+
+// Recursive expression evaluator.
+pub fn evaluate(expression: &ExpressionNode) -> f64 {
+    match expression {
+        ExpressionNode::Constant{ value    } => *value,
+        ExpressionNode::Operator{ op, args } => evaluate_operator(op, args),
+        _ => panic!("Functions aren't implemented yet")
+    }
+}
+
+
+fn evaluate_operator(op: ops::OperatorRef, args: &Vec<ExpressionNode>) -> f64 {
+    match op.function {
+        ops::OpFunction::Nullary(function) => function(),
+        ops::OpFunction::Unary(function)   => function(evaluate(&args[0])),
+        ops::OpFunction::Binary(function)  => function(evaluate(&args[0]), evaluate(&args[1])),
+
+        ops::OpFunction::Lazy(function) => {
+            let arg0 = evaluate(&args[0]);
+            let which = function(arg0);
+            
+            if which == 0 {
+                arg0
+            }
+            else {
+                evaluate(&args[which])
+            }
+        },
+
+        ops::OpFunction::Invalid           => panic!("should have better error handling here")
+    }
 }
 
 
@@ -355,7 +388,7 @@ mod tests {
 
     fn test_parse(expression: &str, expected: &str) {
         let mut tokenizer = Tokenizer::new(expression).peekable();
-        let expression = parse_expression(&mut tokenizer, false).unwrap();
+        let expression = parse(&mut tokenizer, false).unwrap();
         let result = format!("{}", expression);
         assert_eq!(result, expected);
     }
@@ -363,7 +396,7 @@ mod tests {
 
     fn test_error(expression: &str, expected_error: &str) {
         let mut tokenizer = Tokenizer::new(expression).peekable();
-        let error = parse_expression(&mut tokenizer, false).unwrap_err();
+        let error = parse(&mut tokenizer, false).unwrap_err();
         assert_eq!(error, expected_error);
     }
 }
