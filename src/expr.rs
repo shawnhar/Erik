@@ -61,8 +61,17 @@ impl Parser {
         let args = Parser::parse_arguments(tokenizer)?;
 
         match ops::find_operator(symbol) {
-            Some(op) => self.current = Some(ExpressionNode::Operator { op, args }),
-            None     => self.current = Some(ExpressionNode::Function { name: String::from(symbol), args }),
+            Some(op) => {
+                if args.len() != op.arity as usize {
+                    return Err(format!("Wrong number of arguments for {}(): expected {} but got {}.", op.name, op.arity, args.len()));
+                }
+                
+                self.current = Some(ExpressionNode::Operator { op, args });
+            },
+
+            None => {
+                self.current = Some(ExpressionNode::Function { name: String::from(symbol), args });
+            },
         }
 
         Ok(())

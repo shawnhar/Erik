@@ -1,7 +1,7 @@
-mod input;
-mod tokens;
 mod expr;
+mod input;
 mod ops;
+mod tokens;
 
 use std::env;
 use input::InputSource;
