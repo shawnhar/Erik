@@ -204,7 +204,7 @@ impl Parser {
 
 
     // Decide whether we've reached the end of the expression.
-    fn finished(&self, tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> bool {
+    fn is_finished(&self, tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> bool {
         if let Some(Ok(Token::Text(","))) = tokenizer.peek() {
             // Commas always terminate.
             tokenizer.next();
@@ -245,7 +245,7 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
         stack: vec![],
     };
 
-    while !parser.finished(tokenizer, is_nested) {
+    while !parser.is_finished(tokenizer, is_nested) {
         match tokenizer.next() {
             Some(token) => {
                 match token? {

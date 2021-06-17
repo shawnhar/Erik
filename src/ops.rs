@@ -30,7 +30,6 @@ pub struct Operator {
     pub is_right_associative: bool,
 }
 
-
 pub type OperatorRef = &'static Operator;
 
 
