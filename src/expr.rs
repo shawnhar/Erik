@@ -50,6 +50,7 @@ impl Parser {
     }
 
 
+    // Pushes an operator onto the stack, performing a shift/reduce loop based on precedence.
     fn push_operator(&mut self, mut op: ops::OperatorRef) -> Result<(), String> {
         // Turn binary subtraction into unary negation if there is no current value.
         if op == "-" && self.current.is_none() {
@@ -58,55 +59,52 @@ impl Parser {
 
         // Reduce the operator stack according to precedence.
         if op != "(" {
-            let operator_precedence = op.precedence as u32;
+            let op_precedence = op.precedence as u32;
 
-            while !self.stack.is_empty() {
-                // Compare precedence with the operator on top of the stack.
-                let stack_operator = self.stack.last().unwrap().0;
-                let mut stack_precedence = stack_operator.precedence as u32;
+            while let Some((stack_op, _)) = self.stack.last() {
+                let mut stack_precedence = stack_op.precedence as u32;
 
-                if stack_operator.arity != 1 {
+                if stack_op.arity != 1 {
                     if op.arity == 1 {
                         break;
                     }
 
-                    if !stack_operator.is_right_associative {
+                    if !stack_op.is_right_associative {
                         stack_precedence = stack_precedence + 1;
                     }
                 }
 
-                if operator_precedence >= stack_precedence {
+                if op_precedence >= stack_precedence {
                     break;
                 }
 
-                // Pop from the stack, taking ownership where we were previously just examining a borrow.
-                let (stack_operator, stack_value) = self.stack.pop().unwrap();
+                // Pop from the stack, taking ownership where we were previously examining a borrow.
+                let (stack_op, stack_value) = self.stack.pop().unwrap();
 
-                match stack_operator.arity {
+                match stack_op.arity {
                     1 => {
                         // Unary operator.
-                        if self.current.is_none() || stack_value.is_some() {
-                            return Err(String::from("Invalid expression uTODO."));
+                        match (self.current.take(), stack_value) {
+                            (Some(current), None) => {
+                                self.current = Some(ExpressionNode::Operator { op: stack_op, args: vec![ current ] });
+                            },
+                            _ => return Err(String::from("Invalid expression uTODO."))
                         }
-
-                        self.current = Some(ExpressionNode::Operator {
-                            op: stack_operator,
-                            args: vec![ self.current.take().unwrap() ]
-                        });
                     },
 
                     2 => {
                         // Binary operator - or it could be adjacent ? and : which combine to form a ternary.
-                        if self.current.is_none() || stack_value.is_none() {
-                            return Err(String::from("Invalid expression hTODO."));
+                        match (self.current.take(), stack_value) {
+                            (Some(current), Some(stack)) => {
+                                self.current = Some(Parser::binary_or_ternary(stack_op, stack, current));
+                            },
+                            _ => return Err(String::from("Invalid expression hTODO."))
                         }
-
-                        self.current = Some(Parser::binary_or_ternary(stack_operator, stack_value.unwrap(), self.current.take().unwrap()));
                     },
                     
                     _ => {
                         // Match open and close braces.
-                        if stack_operator != "(" || stack_value.is_some() {
+                        if stack_op != "(" || stack_value.is_some() {
                             return Err(String::from("Invalid expression jTODO."));
                         }
 
@@ -141,7 +139,7 @@ impl Parser {
     // Decides whether we are dealing with a binary or ternary operator.
     fn binary_or_ternary(op: ops::OperatorRef, x: ExpressionNode, mut y: ExpressionNode) -> ExpressionNode {
         if op == "?" {
-            if let ExpressionNode::Operator{op: y_op, args: ref mut y_args} = y {
+            if let ExpressionNode::Operator{ op: y_op, args: ref mut y_args } = y {
                 if y_op == ":" {
                     // Merge adjacent ? and : operators into a combined ternary operator.
                     return ExpressionNode::Operator {
@@ -218,7 +216,6 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
         stack: vec![],
     };
 
-    // Shift/reduce loop.
     while !parser.done_parsing(tokenizer, is_nested) {
         match tokenizer.next() {
             Some(token) => {
@@ -232,14 +229,14 @@ pub fn parse_expression(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) ->
         }
     }
 
-    // Flush the stack.
+    // Collapse the stack.
     if parser.current.is_none() {
         return Err(String::from("Invalid expression yTODO."));
     }
 
     parser.push_operator(&ops::TERMINATOR)?;
 
-    // We should now have just one item left on the stack.
+    // We should now have just one item left.
     if parser.stack.len() != 1 {
         return Err(String::from("Invalid expression zTODO."));
     }
