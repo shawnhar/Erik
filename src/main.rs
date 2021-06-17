@@ -7,6 +7,9 @@ use std::env;
 use input::InputSource;
 use tokens::Tokenizer;
 
+#[macro_use]
+extern crate lazy_static;
+
 
 fn main() {
     let args = env::args().skip(1).collect();
