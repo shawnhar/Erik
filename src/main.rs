@@ -26,7 +26,7 @@ fn evaluate(line: &str) -> Result<(), String> {
 
     let expression = expr::parse_expression(&mut tokenizer, false)?;
     
-    println!("{:#?}", expression);
+    println!("{}", expression);
 
     Ok(())
 }

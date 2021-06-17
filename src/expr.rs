@@ -1,14 +1,33 @@
+use std::fmt;
 use std::iter::Peekable;
 use crate::ops;
 use crate::tokens::{Token, Tokenizer};
 
 
 // Expressions are represented as a tree of nodes.
-#[derive(Debug)]
 pub enum ExpressionNode {
     Constant { value: f64 },
     Operator { op: ops::OperatorRef, args: Vec<ExpressionNode> },
     Function { name: String,         args: Vec<ExpressionNode> },
+}
+
+
+// Expression tree formatter, useful for debugging and unit tests.
+impl fmt::Display for ExpressionNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn format_args(args: &Vec<ExpressionNode>) -> String {
+            args.iter()
+                .map(|arg| { format!("{}", arg) })
+                .collect::<Vec<String>>()
+                .join(",")
+        }
+
+        match self {
+            ExpressionNode::Constant{ value      } => write!(f, "{}", value),
+            ExpressionNode::Operator{ op,   args } => write!(f, "{}({})", op.name, format_args(args)),
+            ExpressionNode::Function{ name, args } => write!(f, "{}({})", name,    format_args(args)),
+        }
+    }
 }
 
 

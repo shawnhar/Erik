@@ -3,7 +3,6 @@ use crate::ops;
 
 
 // Before parsing, input strings are tokenized into a linear sequence of these enums.
-#[derive(Debug)]
 pub enum Token<'a> {
     Number(f64),
     Text(&'a str),
@@ -145,7 +144,7 @@ impl<'a> Tokenizer<'a> {
         // The above logic will accept plenty of invalid strings, so this conversion can fail!
         match slice.parse() {
             Ok(value) => Ok(Token::Number(value)),
-            Err(_) => Err(format!("Invalid numeric constant '{0}'.", slice))
+            Err(_) => Err(format!("Invalid numeric constant '{}'.", slice))
         }
     }
 
