@@ -1,6 +1,7 @@
 use std::f64;
 use std::fmt;
 use std::iter::Peekable;
+use crate::Context;
 use crate::ops;
 use crate::ops::{OpFunction, OperatorRef};
 use crate::tokens::{Token, Tokenizer};
@@ -13,6 +14,31 @@ pub enum ExpressionNode {
     Operator { op: OperatorRef, args: Vec<ExpressionNode> },
     Function { name: String,    args: Vec<ExpressionNode> },
 }
+
+
+// A user defined function consists of an expression tree plus list of parameter names.
+pub struct Function {
+    expression: ExpressionNode,
+    args: Vec<String>,
+}
+
+
+// Local context used while evaluating a function.
+struct FunctionFrame<'a> {
+
+    // Backlink to the global execution context.
+    context: &'a Context,
+    
+    // Parameter names and values for the current function.
+    arg_names: Option<&'a Vec<String>>,
+    arg_values: Vec<f64>,
+
+    // Track recursion depth, so we can error out if it goes too far.
+    recursion_count: u32,
+}
+
+
+const MAX_RECURSION: u32 = 1024;
 
 
 // Expression tree formatter, useful for debugging and unit tests.
@@ -214,7 +240,7 @@ impl Parser {
         }
         else if is_nested {
             // Parsing x or y from something like f(x, y(z)).
-            // Closing parenthisis terminates only if there are no open parens on the stack.
+            // Closing parenthesis terminates only if there are no open parens on the stack.
             if Parser::peek_operator(tokenizer, ")") {
                 !self.stack.iter().any(|op| { op.0 == "(" })
             }
@@ -239,7 +265,7 @@ impl Parser {
 }
 
 
-// The main expression parser.
+// Expression parser entrypoint.
 pub fn parse(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<ExpressionNode, String>
 {
     let mut parser = Parser {
@@ -276,34 +302,48 @@ pub fn parse(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<Exp
 }
 
 
+// Expression evaluator entrypoint.
+pub fn evaluate(expression: &ExpressionNode, context: &Context) -> Result<f64, String> {
+    let frame = FunctionFrame {
+        context,
+        arg_names: None,
+        arg_values: vec![],
+        recursion_count: 0
+    };
+    
+    eval(expression, &frame)
+}
+
+
 // Recursive expression evaluator.
-pub fn evaluate(expression: &ExpressionNode) -> Result<f64, String> {
+fn eval(expression: &ExpressionNode, frame: &FunctionFrame) -> Result<f64, String> {
     match expression {
         ExpressionNode::Constant{ value    } => Ok(*value),
-        ExpressionNode::Operator{ op, args } => evaluate_operator(op, args),
+        ExpressionNode::Operator{ op, args } => evaluate_operator(op, args, frame),
         _ => Err(String::from("Functions aren't implemented yet."))
     }
 }
 
 
-fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>) -> Result<f64, String> {
+fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>, frame: &FunctionFrame) -> Result<f64, String> {
+    // No need for bound checks because the parser never outputs operators with wrong argument count.
     match op.function {
         OpFunction::Nullary(function) => Ok(function()),
-        OpFunction::Unary  (function) => Ok(function(evaluate(&args[0])?)),
-        OpFunction::Binary (function) => Ok(function(evaluate(&args[0])?, evaluate(&args[1])?)),
+        OpFunction::Unary  (function) => Ok(function(eval(&args[0], frame)?)),
+        OpFunction::Binary (function) => Ok(function(eval(&args[0], frame)?, eval(&args[1], frame)?)),
 
         OpFunction::Lazy(function) => {
-            // Used by the ||, &&, and ?: operators. Applying a function to the first
+            // Used by the ||, &&, and ?: operators. A function applied to the first
             // argument indicates which of the arguments to return. Unused arguments
             // are never evaluated. This lazy evaluation enables recursive functions.
-            let arg0 = evaluate(&args[0])?;
+            let arg0 = eval(&args[0], frame)?;
             let which_arg = function(arg0);
             
             if which_arg == 0 {
                 Ok(arg0)
             }
             else {
-                evaluate(&args[which_arg])
+                eval(&args[which_arg], frame)
             }
         },
 

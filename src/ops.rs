@@ -31,7 +31,7 @@ pub enum OpFunction {
     Unary  (fn(f64)      -> f64),
     Binary (fn(f64, f64) -> f64),
     Lazy   (fn(f64)      -> usize),
-    Invalid
+    Invalid,
 
     // Lazy operators take the value of their first parameter, and return the index of which
     // other parameter should be evaluated and used as the result of the expression. This
