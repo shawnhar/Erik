@@ -9,8 +9,8 @@ My Rust calculator is called Erik, because a rusty version of Eric can surely be
 other than Erik the Red...
 
 TODO:
-- functions
-- commas for multi-expression lines
+- Unit test user defined functions
+- TODOs in main for redirecting output
 - quit
 - help
 - ls

@@ -8,7 +8,6 @@ extern crate lazy_static;
 
 use std::collections::HashMap;
 use std::env;
-use expr::Function;
 use input::InputSource;
 use tokens::Tokenizer;
 
@@ -17,7 +16,7 @@ use tokens::Tokenizer;
 pub struct Context {
 
     // User defined functions.
-    functions: HashMap<String, Function>,
+    functions: HashMap<String, expr::Function>,
 
     // Where to write output, which can be redirected by unit tests.
     // TODO output: &<'a> dyn std::io::Write,
@@ -35,7 +34,7 @@ impl Context {
 
 
 fn main() {
-    let context = Context::new();
+    let mut context = Context::new();
     
     // Skip over the executable name.
     let args = env::args().skip(1).collect();
@@ -43,20 +42,28 @@ fn main() {
     let input = InputSource::new(args);
 
     for line in input {
-        if let Err(message) = evaluate_line(&line, &context) {
+        if let Err(message) = evaluate_line(&line, &mut context) {
             println!("{}", message);
         }
     }
 }
 
 
-fn evaluate_line(line: &str, context: &Context) -> Result<(), String> {
+fn evaluate_line(line: &str, context: &mut Context) -> Result<(), String> {
     let mut tokenizer = Tokenizer::new(&line).peekable();
 
-    let expression = expr::parse(&mut tokenizer, false)?;
+    while tokenizer.peek().is_some() {
+        let mut expression = expr::parse(&mut tokenizer, false)?;
 
-    println!("{}", expression);
-    println!("{}", expr::evaluate(&expression, context)?);
+        if let Some((function, function_name)) = expr::deconstruct_function_definition(&mut expression) {
+            // Define a new function.
+            context.functions.insert(function_name, function);
+        }
+        else {
+            // Evaluate an expression.
+            println!("{}", expr::evaluate(&expression, context)?);
+        }
+    }
 
     Ok(())
 }

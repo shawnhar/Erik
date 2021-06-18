@@ -38,7 +38,7 @@ struct FunctionFrame<'a> {
 }
 
 
-const MAX_RECURSION: u32 = 1024;
+const MAX_RECURSION: u32 = 256;
 
 
 // Expression tree formatter, useful for debugging and unit tests.
@@ -359,7 +359,7 @@ fn evaluate_function(name: &String, args: &Vec<ExpressionNode>, frame: &Function
             Ok(frame.local_values[which_local])
         }
         else {
-            Err(format!("First class function {}(...) is not supported.", name))
+            Err(format!("Use of {}() as first class function is not supported.", name))
         }
     }
     else {
@@ -367,7 +367,7 @@ fn evaluate_function(name: &String, args: &Vec<ExpressionNode>, frame: &Function
         match frame.context.functions.get(name) {
             Some(function) => {
                 if args.len() != function.args.len() {
-                    return Err(format!("Wrong number of arguments for user defined function {}(): expected {} but got {}.", name, function.args.len(), args.len()));
+                    return Err(format!("Wrong number of arguments for {}(): expected {} but got {}.", name, function.args.len(), args.len()));
                 }
 
                 let mut child_args = Vec::with_capacity(args.len());
@@ -392,6 +392,40 @@ fn evaluate_function(name: &String, args: &Vec<ExpressionNode>, frame: &Function
             
             None => Err(format!("Unknown value {}.", name))
         }
+    }
+}
+
+
+pub fn deconstruct_function_definition(expression: &mut ExpressionNode) -> Option<(Function, String)> {
+
+    // we want something like x=y or f(x)=y
+
+    match expression {
+        ExpressionNode::Operator{ op: assign_op, args: assign_args } if assign_op == "=" => {
+            match &assign_args[0] {
+                ExpressionNode::Function{ name: function_name, args: function_args } => {
+                    let mut n = vec![];
+                    
+                    for arg in function_args {
+                        match arg {
+                            ExpressionNode::Function{ name: arg_name, args: arg_args } if arg_args.is_empty() => n.push(arg_name.clone()),
+                            _ => return None// TODO error on failure
+                        }
+                    }
+                    
+                    let name = function_name.clone();
+                    
+                    let mut result = ExpressionNode::Constant { value: 0.0 };
+                    std::mem::swap(&mut assign_args[1], &mut result);
+                    
+                    Some((Function { expression: result, args: n }, name))
+                }
+                
+                _ => None
+            }
+        }
+        
+        _ => None
     }
 }
 
