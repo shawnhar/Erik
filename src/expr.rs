@@ -29,9 +29,9 @@ struct FunctionFrame<'a> {
     // Backlink to the global execution context.
     context: &'a Context,
     
-    // Parameter names and values for the current function.
-    arg_names: Option<&'a Vec<String>>,
-    arg_values: Vec<f64>,
+    // Parameter names and values for the currently executing function.
+    local_names: &'a Vec<String>,
+    local_values: Vec<f64>,
 
     // Track recursion depth, so we can error out if it goes too far.
     recursion_count: u32,
@@ -306,8 +306,8 @@ pub fn parse(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<Exp
 pub fn evaluate(expression: &ExpressionNode, context: &Context) -> Result<f64, String> {
     let frame = FunctionFrame {
         context,
-        arg_names: None,
-        arg_values: vec![],
+        local_names: &vec![],
+        local_values: vec![],
         recursion_count: 0
     };
     
@@ -318,16 +318,16 @@ pub fn evaluate(expression: &ExpressionNode, context: &Context) -> Result<f64, S
 // Recursive expression evaluator.
 fn eval(expression: &ExpressionNode, frame: &FunctionFrame) -> Result<f64, String> {
     match expression {
-        ExpressionNode::Constant{ value    } => Ok(*value),
-        ExpressionNode::Operator{ op, args } => evaluate_operator(op, args, frame),
-        _ => Err(String::from("Functions aren't implemented yet."))
+        ExpressionNode::Constant{ value      } => Ok(*value),
+        ExpressionNode::Operator{ op, args   } => evaluate_operator(op, args, frame),
+        ExpressionNode::Function{ name, args } => evaluate_function(name, args, frame),
     }
 }
 
 
 fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>, frame: &FunctionFrame) -> Result<f64, String> {
-    // No need for bound checks because the parser never outputs operators with wrong argument count.
     match op.function {
+        // No need for bound checks because the parser never outputs operators with wrong argument count.
         OpFunction::Nullary(function) => Ok(function()),
         OpFunction::Unary  (function) => Ok(function(eval(&args[0], frame)?)),
         OpFunction::Binary (function) => Ok(function(eval(&args[0], frame)?, eval(&args[1], frame)?)),
@@ -348,6 +348,50 @@ fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>, frame: &Functi
         },
 
         OpFunction::Invalid => Err(format!("Invalid use of {} operator.", op.name))
+    }
+}
+
+
+fn evaluate_function(name: &String, args: &Vec<ExpressionNode>, frame: &FunctionFrame) -> Result<f64, String> {
+    if let Some(which_local) = frame.local_names.iter().position(|local_name| { local_name == name }) {
+        // Looking up a local function parameter.
+        if args.is_empty() {
+            Ok(frame.local_values[which_local])
+        }
+        else {
+            Err(format!("First class function {}(...) is not supported.", name))
+        }
+    }
+    else {
+        // Calling a user defined function.
+        match frame.context.functions.get(name) {
+            Some(function) => {
+                if args.len() != function.args.len() {
+                    return Err(format!("Wrong number of arguments for user defined function {}(): expected {} but got {}.", name, function.args.len(), args.len()));
+                }
+
+                let mut child_args = Vec::with_capacity(args.len());
+                
+                for arg in args {
+                    child_args.push(eval(arg, frame)?);
+                }
+     
+                if frame.recursion_count > MAX_RECURSION {
+                    return Err(String::from("Excessive recursion."));
+                }
+     
+                let child_frame = FunctionFrame {
+                    context: frame.context,
+                    local_names: &function.args,
+                    local_values: child_args,
+                    recursion_count: frame.recursion_count + 1
+                };
+                
+                eval(&function.expression, &child_frame)
+            },
+            
+            None => Err(format!("Unknown value {}.", name))
+        }
     }
 }
 
@@ -784,14 +828,14 @@ mod tests {
     fn test_eval(expression: &str) -> f64 {
         let mut tokenizer = Tokenizer::new(expression).peekable();
         let expression = parse(&mut tokenizer, false).unwrap();
-        evaluate(&expression).unwrap()
+        evaluate(&expression, &Context::new()).unwrap()
     }
 
 
     fn test_eval_error(expression: &str, expected_error: &str) {
         let mut tokenizer = Tokenizer::new(expression).peekable();
         let expression = parse(&mut tokenizer, false).unwrap();
-        let error = evaluate(&expression).unwrap_err();
+        let error = evaluate(&expression, &Context::new()).unwrap_err();
         assert_eq!(error, expected_error);
     }
 }

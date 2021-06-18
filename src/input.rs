@@ -10,7 +10,7 @@ pub struct InputSource {
 
 impl InputSource {
     pub fn new(args: Vec<String>) -> InputSource {
-        if args.len() == 0 {
+        if args.is_empty() {
             // Reading from an interactive console.
             InputSource { text: None }
         }

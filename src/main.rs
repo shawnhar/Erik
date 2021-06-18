@@ -24,11 +24,18 @@ pub struct Context {
 }
 
 
+impl Context {
+    pub fn new() -> Context {
+        Context {
+            functions: HashMap::new(),
+            // TODO output: std::io::stdout(),
+        }
+    }
+}
+
+
 fn main() {
-    let context = Context {
-        functions: HashMap::new(),
-        // TODO output: std::io::stdout(),
-    };
+    let context = Context::new();
     
     // Skip over the executable name.
     let args = env::args().skip(1).collect();
