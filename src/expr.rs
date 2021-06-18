@@ -277,37 +277,37 @@ pub fn parse(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<Exp
 
 
 // Recursive expression evaluator.
-pub fn evaluate(expression: &ExpressionNode) -> f64 {
+pub fn evaluate(expression: &ExpressionNode) -> Result<f64, String> {
     match expression {
-        ExpressionNode::Constant{ value    } => *value,
+        ExpressionNode::Constant{ value    } => Ok(*value),
         ExpressionNode::Operator{ op, args } => evaluate_operator(op, args),
-        _ => panic!("Functions aren't implemented yet")
+        _ => Err(String::from("Functions aren't implemented yet."))
     }
 }
 
 
-fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>) -> f64 {
+fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>) -> Result<f64, String> {
     match op.function {
-        OpFunction::Nullary(function) => function(),
-        OpFunction::Unary  (function) => function(evaluate(&args[0])),
-        OpFunction::Binary (function) => function(evaluate(&args[0]), evaluate(&args[1])),
+        OpFunction::Nullary(function) => Ok(function()),
+        OpFunction::Unary  (function) => Ok(function(evaluate(&args[0])?)),
+        OpFunction::Binary (function) => Ok(function(evaluate(&args[0])?, evaluate(&args[1])?)),
 
         OpFunction::Lazy(function) => {
             // Used by the ||, &&, and ?: operators. Applying a function to the first
             // argument indicates which of the arguments to return. Unused arguments
             // are never evaluated. This lazy evaluation enables recursive functions.
-            let arg0 = evaluate(&args[0]);
+            let arg0 = evaluate(&args[0])?;
             let which_arg = function(arg0);
             
             if which_arg == 0 {
-                arg0
+                Ok(arg0)
             }
             else {
                 evaluate(&args[which_arg])
             }
         },
 
-        OpFunction::Invalid => panic!("should have better error handling here")
+        OpFunction::Invalid => Err(format!("Invalid use of {} operator.", op.name))
     }
 }
 
@@ -362,32 +362,32 @@ mod tests {
 
     #[test]
     fn parse_errors() {
-        test_error("1 2", "Invalid expression: expecting operator but got '2'.");
-        test_error("e pi", "Invalid expression: expecting operator but got 'pi'.");
-        test_error("foo() bar()", "Invalid expression: expecting operator but got 'bar'.");
+        test_parse_error("1 2", "Invalid expression: expecting operator but got '2'.");
+        test_parse_error("e pi", "Invalid expression: expecting operator but got 'pi'.");
+        test_parse_error("foo() bar()", "Invalid expression: expecting operator but got 'bar'.");
 
-        test_error("e(1)", "Wrong number of arguments for e(): expected 0 but got 1.");
-        test_error("e(1,2,3)", "Wrong number of arguments for e(): expected 0 but got 3.");
-        test_error("sin()", "Wrong number of arguments for sin(): expected 1 but got 0.");
-        test_error("sin(1,2)", "Wrong number of arguments for sin(): expected 1 but got 2.");
-        test_error("max()", "Wrong number of arguments for max(): expected 2 but got 0.");
-        test_error("max(1)", "Wrong number of arguments for max(): expected 2 but got 1.");
-        test_error("max(1,2,3)", "Wrong number of arguments for max(): expected 2 but got 3.");
+        test_parse_error("e(1)", "Wrong number of arguments for e(): expected 0 but got 1.");
+        test_parse_error("e(1,2,3)", "Wrong number of arguments for e(): expected 0 but got 3.");
+        test_parse_error("sin()", "Wrong number of arguments for sin(): expected 1 but got 0.");
+        test_parse_error("sin(1,2)", "Wrong number of arguments for sin(): expected 1 but got 2.");
+        test_parse_error("max()", "Wrong number of arguments for max(): expected 2 but got 0.");
+        test_parse_error("max(1)", "Wrong number of arguments for max(): expected 2 but got 1.");
+        test_parse_error("max(1,2,3)", "Wrong number of arguments for max(): expected 2 but got 3.");
 
-        test_error("1ee2", "Invalid numeric constant '1ee2'.");
-        test_error("sin(1ee2)", "Invalid numeric constant '1ee2'.");
+        test_parse_error("1ee2", "Invalid numeric constant '1ee2'.");
+        test_parse_error("sin(1ee2)", "Invalid numeric constant '1ee2'.");
 
-        test_error("!+", "Invalid expression: unary ! operator is missing an operand.");
-        test_error("++", "Invalid expression: binary + operator is missing an operand.");
+        test_parse_error("!+", "Invalid expression: unary ! operator is missing an operand.");
+        test_parse_error("++", "Invalid expression: binary + operator is missing an operand.");
 
-        test_error("1()", "Invalid expression: unexpected open parenthesis.");
-        test_error("()", "Invalid expression: unexpected close parenthesis.");
-        test_error(")", "Invalid expression: too many close parentheses.");
-        test_error("x(y+z)/sqrt(10))+2", "Invalid expression: too many close parentheses.");
+        test_parse_error("1()", "Invalid expression: unexpected open parenthesis.");
+        test_parse_error("()", "Invalid expression: unexpected close parenthesis.");
+        test_parse_error(")", "Invalid expression: too many close parentheses.");
+        test_parse_error("x(y+z)/sqrt(10))+2", "Invalid expression: too many close parentheses.");
 
-        test_error("x+", "Invalid expression: unexpected end of input.");
-        test_error("sqrt(", "Invalid expression: unexpected end of input.");
-        test_error("(1", "Invalid expression: unexpected end of input.");
+        test_parse_error("x+", "Invalid expression: unexpected end of input.");
+        test_parse_error("sqrt(", "Invalid expression: unexpected end of input.");
+        test_parse_error("(1", "Invalid expression: unexpected end of input.");
     }
 
 
@@ -399,7 +399,7 @@ mod tests {
     }
 
 
-    fn test_error(expression: &str, expected_error: &str) {
+    fn test_parse_error(expression: &str, expected_error: &str) {
         let mut tokenizer = Tokenizer::new(expression).peekable();
         let error = parse(&mut tokenizer, false).unwrap_err();
         assert_eq!(error, expected_error);
@@ -408,209 +408,209 @@ mod tests {
 
     #[test]
     fn eval_booleans() {
-        assert_eq!(parse_and_eval("1<2 || 3<4"), 1.0);
-        assert_eq!(parse_and_eval("1>2 || 3<4"), 1.0);
-        assert_eq!(parse_and_eval("1<2 || 3>4"), 1.0);
-        assert_eq!(parse_and_eval("1>2 || 3>4"), 0.0);
-        assert_eq!(parse_and_eval("23 || 42"), 23.0);
-        assert_eq!(parse_and_eval("0 || 42"), 42.0);
-        assert_eq!(parse_and_eval("23 || 0"), 23.0);
+        assert_eq!(test_eval("1<2 || 3<4"), 1.0);
+        assert_eq!(test_eval("1>2 || 3<4"), 1.0);
+        assert_eq!(test_eval("1<2 || 3>4"), 1.0);
+        assert_eq!(test_eval("1>2 || 3>4"), 0.0);
+        assert_eq!(test_eval("23 || 42"), 23.0);
+        assert_eq!(test_eval("0 || 42"), 42.0);
+        assert_eq!(test_eval("23 || 0"), 23.0);
 
-        assert_eq!(parse_and_eval("1<2 && 3<4"), 1.0);
-        assert_eq!(parse_and_eval("1>2 && 3<4"), 0.0);
-        assert_eq!(parse_and_eval("1<2 && 3>4"), 0.0);
-        assert_eq!(parse_and_eval("1>2 && 3>4"), 0.0);
-        assert_eq!(parse_and_eval("23 && 42"), 42.0);
-        assert_eq!(parse_and_eval("0 && 42"), 0.0);
-        assert_eq!(parse_and_eval("23 && 0"), 0.0);
+        assert_eq!(test_eval("1<2 && 3<4"), 1.0);
+        assert_eq!(test_eval("1>2 && 3<4"), 0.0);
+        assert_eq!(test_eval("1<2 && 3>4"), 0.0);
+        assert_eq!(test_eval("1>2 && 3>4"), 0.0);
+        assert_eq!(test_eval("23 && 42"), 42.0);
+        assert_eq!(test_eval("0 && 42"), 0.0);
+        assert_eq!(test_eval("23 && 0"), 0.0);
 
-        assert_eq!(parse_and_eval("!0"), 1.0);
-        assert_eq!(parse_and_eval("!1"), 0.0);
-        assert_eq!(parse_and_eval("!100"), 0.0);
-        assert_eq!(parse_and_eval("!-1"), 0.0);
+        assert_eq!(test_eval("!0"), 1.0);
+        assert_eq!(test_eval("!1"), 0.0);
+        assert_eq!(test_eval("!100"), 0.0);
+        assert_eq!(test_eval("!-1"), 0.0);
 
-        assert_eq!(parse_and_eval("0 ? 2 : 3"), 3.0);
-        assert_eq!(parse_and_eval("1 ? 2 : 3"), 2.0);
+        assert_eq!(test_eval("0 ? 2 : 3"), 3.0);
+        assert_eq!(test_eval("1 ? 2 : 3"), 2.0);
     }
 
 
     #[test]
     fn eval_bitwise() {
-        assert_eq!(parse_and_eval("0x1234 | 0x5678"), 22140.0);
-        assert_eq!(parse_and_eval("-10000 | -12345"), -8201.0);
+        assert_eq!(test_eval("0x1234 | 0x5678"), 22140.0);
+        assert_eq!(test_eval("-10000 | -12345"), -8201.0);
 
-        assert_eq!(parse_and_eval("0x1234 ^^ 0x5678"), 17484.0);
-        assert_eq!(parse_and_eval("-10000 ^^ -12345"), 5943.0);
+        assert_eq!(test_eval("0x1234 ^^ 0x5678"), 17484.0);
+        assert_eq!(test_eval("-10000 ^^ -12345"), 5943.0);
 
-        assert_eq!(parse_and_eval("0x1234 & 0x5678"), 4656.0);
-        assert_eq!(parse_and_eval("-10000 & -12345"), -14144.0);
+        assert_eq!(test_eval("0x1234 & 0x5678"), 4656.0);
+        assert_eq!(test_eval("-10000 & -12345"), -14144.0);
 
-        assert_eq!(parse_and_eval("1 << 0"), 1.0);
-        assert_eq!(parse_and_eval("1 << 1"), 2.0);
-        assert_eq!(parse_and_eval("1 << 4"), 16.0);
-        assert_eq!(parse_and_eval("1 << 30"), 1073741824.0);
-        assert_eq!(parse_and_eval("1 << 31"), -2147483648.0);
-        assert_eq!(parse_and_eval("1 << 32"), 1.0);
-        assert_eq!(parse_and_eval("1 << -1"), -2147483648.0);
-        assert_eq!(parse_and_eval("123 << 2"), 492.0);
+        assert_eq!(test_eval("1 << 0"), 1.0);
+        assert_eq!(test_eval("1 << 1"), 2.0);
+        assert_eq!(test_eval("1 << 4"), 16.0);
+        assert_eq!(test_eval("1 << 30"), 1073741824.0);
+        assert_eq!(test_eval("1 << 31"), -2147483648.0);
+        assert_eq!(test_eval("1 << 32"), 1.0);
+        assert_eq!(test_eval("1 << -1"), -2147483648.0);
+        assert_eq!(test_eval("123 << 2"), 492.0);
 
-        assert_eq!(parse_and_eval("0x80000000 >> 0"), 2147483648.0);
-        assert_eq!(parse_and_eval("0x80000000 >> 1"), 1073741824.0);
-        assert_eq!(parse_and_eval("0x80000000 >> 4"), 134217728.0);
-        assert_eq!(parse_and_eval("0x80000000 >> 30"), 2.0);
-        assert_eq!(parse_and_eval("0x80000000 >> 31"), 1.0);
-        assert_eq!(parse_and_eval("0x80000000 >> 32"), 2147483648.0);
-        assert_eq!(parse_and_eval("0x80000000 >> -1"), 1.0);
-        assert_eq!(parse_and_eval("1234 >> 2"), 308.0);
+        assert_eq!(test_eval("0x80000000 >> 0"), 2147483648.0);
+        assert_eq!(test_eval("0x80000000 >> 1"), 1073741824.0);
+        assert_eq!(test_eval("0x80000000 >> 4"), 134217728.0);
+        assert_eq!(test_eval("0x80000000 >> 30"), 2.0);
+        assert_eq!(test_eval("0x80000000 >> 31"), 1.0);
+        assert_eq!(test_eval("0x80000000 >> 32"), 2147483648.0);
+        assert_eq!(test_eval("0x80000000 >> -1"), 1.0);
+        assert_eq!(test_eval("1234 >> 2"), 308.0);
 
-        assert_eq!(parse_and_eval("0x80000000 >>> 0"), -2147483648.0);
-        assert_eq!(parse_and_eval("0x80000000 >>> 1"), -1073741824.0);
-        assert_eq!(parse_and_eval("0x80000000 >>> 4"), -134217728.0);
-        assert_eq!(parse_and_eval("0x80000000 >>> 30"), -2.0);
-        assert_eq!(parse_and_eval("0x80000000 >>> 31"), -1.0);
-        assert_eq!(parse_and_eval("0x80000000 >>> 32"), -2147483648.0);
-        assert_eq!(parse_and_eval("0x80000000 >>> -1"), -1.0);
-        assert_eq!(parse_and_eval("1234 >>> 2"), 308.0);
+        assert_eq!(test_eval("0x80000000 >>> 0"), -2147483648.0);
+        assert_eq!(test_eval("0x80000000 >>> 1"), -1073741824.0);
+        assert_eq!(test_eval("0x80000000 >>> 4"), -134217728.0);
+        assert_eq!(test_eval("0x80000000 >>> 30"), -2.0);
+        assert_eq!(test_eval("0x80000000 >>> 31"), -1.0);
+        assert_eq!(test_eval("0x80000000 >>> 32"), -2147483648.0);
+        assert_eq!(test_eval("0x80000000 >>> -1"), -1.0);
+        assert_eq!(test_eval("1234 >>> 2"), 308.0);
 
-        assert_eq!(parse_and_eval("~0"), -1.0);
-        assert_eq!(parse_and_eval("~-1"), 0.0);
-        assert_eq!(parse_and_eval("~1234"), -1235.0);
+        assert_eq!(test_eval("~0"), -1.0);
+        assert_eq!(test_eval("~-1"), 0.0);
+        assert_eq!(test_eval("~1234"), -1235.0);
     }
 
 
     #[test]
     fn eval_comparisons() {
-        assert_eq!(parse_and_eval("1 == 2"), 0.0);
-        assert_eq!(parse_and_eval("1 == 1"), 1.0);
-        assert_eq!(parse_and_eval("2 == 1"), 0.0);
+        assert_eq!(test_eval("1 == 2"), 0.0);
+        assert_eq!(test_eval("1 == 1"), 1.0);
+        assert_eq!(test_eval("2 == 1"), 0.0);
 
-        assert_eq!(parse_and_eval("1 != 2"), 1.0);
-        assert_eq!(parse_and_eval("1 != 1"), 0.0);
-        assert_eq!(parse_and_eval("2 != 1"), 1.0);
+        assert_eq!(test_eval("1 != 2"), 1.0);
+        assert_eq!(test_eval("1 != 1"), 0.0);
+        assert_eq!(test_eval("2 != 1"), 1.0);
 
-        assert_eq!(parse_and_eval("1 < 2"), 1.0);
-        assert_eq!(parse_and_eval("1 < 1"), 0.0);
-        assert_eq!(parse_and_eval("2 < 1"), 0.0);
+        assert_eq!(test_eval("1 < 2"), 1.0);
+        assert_eq!(test_eval("1 < 1"), 0.0);
+        assert_eq!(test_eval("2 < 1"), 0.0);
 
-        assert_eq!(parse_and_eval("1 > 2"), 0.0);
-        assert_eq!(parse_and_eval("1 > 1"), 0.0);
-        assert_eq!(parse_and_eval("2 > 1"), 1.0);
+        assert_eq!(test_eval("1 > 2"), 0.0);
+        assert_eq!(test_eval("1 > 1"), 0.0);
+        assert_eq!(test_eval("2 > 1"), 1.0);
 
-        assert_eq!(parse_and_eval("1 <= 2"), 1.0);
-        assert_eq!(parse_and_eval("1 <= 1"), 1.0);
-        assert_eq!(parse_and_eval("2 <= 1"), 0.0);
+        assert_eq!(test_eval("1 <= 2"), 1.0);
+        assert_eq!(test_eval("1 <= 1"), 1.0);
+        assert_eq!(test_eval("2 <= 1"), 0.0);
 
-        assert_eq!(parse_and_eval("1 >= 2"), 0.0);
-        assert_eq!(parse_and_eval("1 >= 1"), 1.0);
-        assert_eq!(parse_and_eval("2 >= 1"), 1.0);
+        assert_eq!(test_eval("1 >= 2"), 0.0);
+        assert_eq!(test_eval("1 >= 1"), 1.0);
+        assert_eq!(test_eval("2 >= 1"), 1.0);
     }
 
 
     #[test]
     fn eval_arithmetic() {
-        assert_eq!(parse_and_eval("2 + 3"), 5.0);
-        assert_eq!(parse_and_eval("2 + -3"), -1.0);
+        assert_eq!(test_eval("2 + 3"), 5.0);
+        assert_eq!(test_eval("2 + -3"), -1.0);
 
-        assert_eq!(parse_and_eval("2 - 3"), -1.0);
-        assert_eq!(parse_and_eval("2 - -3"), 5.0);
+        assert_eq!(test_eval("2 - 3"), -1.0);
+        assert_eq!(test_eval("2 - -3"), 5.0);
 
-        assert_eq!(parse_and_eval("2 * 3"), 6.0);
-        assert_eq!(parse_and_eval("2 * -3"), -6.0);
+        assert_eq!(test_eval("2 * 3"), 6.0);
+        assert_eq!(test_eval("2 * -3"), -6.0);
 
-        assert_eq!(parse_and_eval("3 / 2"), 1.5);
-        assert_eq!(parse_and_eval("3 / -2"), -1.5);
-        assert!(parse_and_eval("3 / 0").is_infinite());
+        assert_eq!(test_eval("3 / 2"), 1.5);
+        assert_eq!(test_eval("3 / -2"), -1.5);
+        assert!(test_eval("3 / 0").is_infinite());
 
-        assert_eq!(parse_and_eval("3 % 2"), 1.0);
-        assert_eq!(parse_and_eval("4 % 2"), 0.0);
-        assert_eq!(parse_and_eval("10 % 3"), 1.0);
-        assert_eq!(parse_and_eval("11 % 3"), 2.0);
-        assert_eq!(parse_and_eval("27 % 4"), 3.0);
-        assert_eq!(parse_and_eval("28 % 5"), 3.0);
-        assert_eq!(parse_and_eval("17.5 % 4.25"), 0.5);
-        assert_eq!(parse_and_eval("-16.5 % 5.25"), 4.5);
-        assert_eq!(parse_and_eval("-16.5 % -5.25"), 4.5);
-        assert_eq!(parse_and_eval("16.5 % 5.25"), 0.75);
-        assert_eq!(parse_and_eval("16.5 % -5.25"), 0.75);
+        assert_eq!(test_eval("3 % 2"), 1.0);
+        assert_eq!(test_eval("4 % 2"), 0.0);
+        assert_eq!(test_eval("10 % 3"), 1.0);
+        assert_eq!(test_eval("11 % 3"), 2.0);
+        assert_eq!(test_eval("27 % 4"), 3.0);
+        assert_eq!(test_eval("28 % 5"), 3.0);
+        assert_eq!(test_eval("17.5 % 4.25"), 0.5);
+        assert_eq!(test_eval("-16.5 % 5.25"), 4.5);
+        assert_eq!(test_eval("-16.5 % -5.25"), 4.5);
+        assert_eq!(test_eval("16.5 % 5.25"), 0.75);
+        assert_eq!(test_eval("16.5 % -5.25"), 0.75);
 
-        assert_eq!(parse_and_eval("2 ^ 3"), 8.0);
-        assert_eq!(parse_and_eval("2 ^ 1"), 2.0);
-        assert_eq!(parse_and_eval("2 ^ 0"), 1.0);
-        assert_eq!(parse_and_eval("2 ^ -2"), 0.25);
-        assert_eq!(parse_and_eval("256 ^ 0.25"), 4.0);
+        assert_eq!(test_eval("2 ^ 3"), 8.0);
+        assert_eq!(test_eval("2 ^ 1"), 2.0);
+        assert_eq!(test_eval("2 ^ 0"), 1.0);
+        assert_eq!(test_eval("2 ^ -2"), 0.25);
+        assert_eq!(test_eval("256 ^ 0.25"), 4.0);
     }
 
 
     #[test]
     fn eval_math_functions() {
-        assert_eq!(parse_and_eval("max(1, 2)"), 2.0);
-        assert_eq!(parse_and_eval("max(2, 1)"), 2.0);
+        assert_eq!(test_eval("max(1, 2)"), 2.0);
+        assert_eq!(test_eval("max(2, 1)"), 2.0);
 
-        assert_eq!(parse_and_eval("min(1, 2)"), 1.0);
-        assert_eq!(parse_and_eval("min(2, 1)"), 1.0);
+        assert_eq!(test_eval("min(1, 2)"), 1.0);
+        assert_eq!(test_eval("min(2, 1)"), 1.0);
 
-        assert_eq!(parse_and_eval("sqrt(256)"), 16.0);
-        assert_eq!(parse_and_eval("sqrt(100)"), 10.0);
-        assert_eq!(parse_and_eval("sqrt(1)"), 1.0);
-        assert_eq!(parse_and_eval("sqrt(0)"), 0.0);
-        assert!(parse_and_eval("sqrt(-1)").is_nan());
+        assert_eq!(test_eval("sqrt(256)"), 16.0);
+        assert_eq!(test_eval("sqrt(100)"), 10.0);
+        assert_eq!(test_eval("sqrt(1)"), 1.0);
+        assert_eq!(test_eval("sqrt(0)"), 0.0);
+        assert!(test_eval("sqrt(-1)").is_nan());
 
-        assert_eq!(parse_and_eval("exp(0)"), 1.0);
-        assert_eq!(parse_and_eval("exp(1)"), f64::consts::E);
+        assert_eq!(test_eval("exp(0)"), 1.0);
+        assert_eq!(test_eval("exp(1)"), f64::consts::E);
 
-        assert_eq!(parse_and_eval("ln(e)"), 1.0);
-        assert_eq!(parse_and_eval("ln(1)"), 0.0);
-        assert!(parse_and_eval("ln(0)").is_infinite());
+        assert_eq!(test_eval("ln(e)"), 1.0);
+        assert_eq!(test_eval("ln(1)"), 0.0);
+        assert!(test_eval("ln(0)").is_infinite());
 
-        assert_eq!(parse_and_eval("log(100)"), 2.0);
-        assert_eq!(parse_and_eval("log(10)"), 1.0);
-        assert_eq!(parse_and_eval("log(1)"), 0.0);
-        assert!(parse_and_eval("log(0)").is_infinite());
+        assert_eq!(test_eval("log(100)"), 2.0);
+        assert_eq!(test_eval("log(10)"), 1.0);
+        assert_eq!(test_eval("log(1)"), 0.0);
+        assert!(test_eval("log(0)").is_infinite());
 
-        assert_eq!(parse_and_eval("log2(4)"), 2.0);
-        assert_eq!(parse_and_eval("log2(2)"), 1.0);
-        assert_eq!(parse_and_eval("log2(1)"), 0.0);
-        assert!(parse_and_eval("log2(0)").is_infinite());
+        assert_eq!(test_eval("log2(4)"), 2.0);
+        assert_eq!(test_eval("log2(2)"), 1.0);
+        assert_eq!(test_eval("log2(1)"), 0.0);
+        assert!(test_eval("log2(0)").is_infinite());
 
-        assert_eq!(parse_and_eval("abs(-123)"), 123.0);
-        assert_eq!(parse_and_eval("abs(0)"), 0.0);
-        assert_eq!(parse_and_eval("abs(123)"), 123.0);
+        assert_eq!(test_eval("abs(-123)"), 123.0);
+        assert_eq!(test_eval("abs(0)"), 0.0);
+        assert_eq!(test_eval("abs(123)"), 123.0);
 
-        assert_eq!(parse_and_eval("ceil(-1.1)"), -1.0);
-        assert_eq!(parse_and_eval("ceil(-1)"), -1.0);
-        assert_eq!(parse_and_eval("ceil(-0.9)"), 0.0);
-        assert_eq!(parse_and_eval("ceil(-0.5)"), 0.0);
-        assert_eq!(parse_and_eval("ceil(-0.1)"), 0.0);
-        assert_eq!(parse_and_eval("ceil(0)"), 0.0);
-        assert_eq!(parse_and_eval("ceil(0.1)"), 1.0);
-        assert_eq!(parse_and_eval("ceil(0.5)"), 1.0);
-        assert_eq!(parse_and_eval("ceil(0.9)"), 1.0);
-        assert_eq!(parse_and_eval("ceil(1)"), 1.0);
-        assert_eq!(parse_and_eval("ceil(1.1)"), 2.0);
+        assert_eq!(test_eval("ceil(-1.1)"), -1.0);
+        assert_eq!(test_eval("ceil(-1)"), -1.0);
+        assert_eq!(test_eval("ceil(-0.9)"), 0.0);
+        assert_eq!(test_eval("ceil(-0.5)"), 0.0);
+        assert_eq!(test_eval("ceil(-0.1)"), 0.0);
+        assert_eq!(test_eval("ceil(0)"), 0.0);
+        assert_eq!(test_eval("ceil(0.1)"), 1.0);
+        assert_eq!(test_eval("ceil(0.5)"), 1.0);
+        assert_eq!(test_eval("ceil(0.9)"), 1.0);
+        assert_eq!(test_eval("ceil(1)"), 1.0);
+        assert_eq!(test_eval("ceil(1.1)"), 2.0);
 
-        assert_eq!(parse_and_eval("floor(-1.1)"), -2.0);
-        assert_eq!(parse_and_eval("floor(-1)"), -1.0);
-        assert_eq!(parse_and_eval("floor(-0.9)"), -1.0);
-        assert_eq!(parse_and_eval("floor(-0.5)"), -1.0);
-        assert_eq!(parse_and_eval("floor(-0.1)"), -1.0);
-        assert_eq!(parse_and_eval("floor(0)"), 0.0);
-        assert_eq!(parse_and_eval("floor(0.1)"), 0.0);
-        assert_eq!(parse_and_eval("floor(0.5)"), 0.0);
-        assert_eq!(parse_and_eval("floor(0.9)"), 0.0);
-        assert_eq!(parse_and_eval("floor(1)"), 1.0);
-        assert_eq!(parse_and_eval("floor(1.1)"), 1.0);
+        assert_eq!(test_eval("floor(-1.1)"), -2.0);
+        assert_eq!(test_eval("floor(-1)"), -1.0);
+        assert_eq!(test_eval("floor(-0.9)"), -1.0);
+        assert_eq!(test_eval("floor(-0.5)"), -1.0);
+        assert_eq!(test_eval("floor(-0.1)"), -1.0);
+        assert_eq!(test_eval("floor(0)"), 0.0);
+        assert_eq!(test_eval("floor(0.1)"), 0.0);
+        assert_eq!(test_eval("floor(0.5)"), 0.0);
+        assert_eq!(test_eval("floor(0.9)"), 0.0);
+        assert_eq!(test_eval("floor(1)"), 1.0);
+        assert_eq!(test_eval("floor(1.1)"), 1.0);
 
-        assert_eq!(parse_and_eval("round(-1.1)"), -1.0);
-        assert_eq!(parse_and_eval("round(-1)"), -1.0);
-        assert_eq!(parse_and_eval("round(-0.9)"), -1.0);
-        assert_eq!(parse_and_eval("round(-0.5)"), -1.0);
-        assert_eq!(parse_and_eval("round(-0.1)"), 0.0);
-        assert_eq!(parse_and_eval("round(0)"), 0.0);
-        assert_eq!(parse_and_eval("round(0.1)"), 0.0);
-        assert_eq!(parse_and_eval("round(0.5)"), 1.0);
-        assert_eq!(parse_and_eval("round(0.9)"), 1.0);
-        assert_eq!(parse_and_eval("round(1)"), 1.0);
-        assert_eq!(parse_and_eval("round(1.1)"), 1.0);
+        assert_eq!(test_eval("round(-1.1)"), -1.0);
+        assert_eq!(test_eval("round(-1)"), -1.0);
+        assert_eq!(test_eval("round(-0.9)"), -1.0);
+        assert_eq!(test_eval("round(-0.5)"), -1.0);
+        assert_eq!(test_eval("round(-0.1)"), 0.0);
+        assert_eq!(test_eval("round(0)"), 0.0);
+        assert_eq!(test_eval("round(0.1)"), 0.0);
+        assert_eq!(test_eval("round(0.5)"), 1.0);
+        assert_eq!(test_eval("round(0.9)"), 1.0);
+        assert_eq!(test_eval("round(1)"), 1.0);
+        assert_eq!(test_eval("round(1.1)"), 1.0);
     }
 
 
@@ -619,123 +619,139 @@ mod tests {
         let value: f64 = 0.5;
         let value2: f64 = 1.5;
         
-        assert_eq!(parse_and_eval("sin(0.5)"), value.sin());
-        assert_eq!(parse_and_eval("cos(0.5)"), value.cos());
-        assert_eq!(parse_and_eval("tan(0.5)"), value.tan());
-        assert_eq!(parse_and_eval("sinh(0.5)"), value.sinh());
-        assert_eq!(parse_and_eval("cosh(0.5)"), value.cosh());
-        assert_eq!(parse_and_eval("tanh(0.5)"), value.tanh());
-        assert_eq!(parse_and_eval("asin(0.5)"), value.asin());
-        assert_eq!(parse_and_eval("acos(0.5)"), value.acos());
-        assert_eq!(parse_and_eval("atan(0.5)"), value.atan());
-        assert_eq!(parse_and_eval("asinh(0.5)"), value.asinh());
-        assert_eq!(parse_and_eval("acosh(1.5)"), value2.acosh());
-        assert_eq!(parse_and_eval("atanh(0.5)"), value.atanh());
+        assert_eq!(test_eval("sin(0.5)"), value.sin());
+        assert_eq!(test_eval("cos(0.5)"), value.cos());
+        assert_eq!(test_eval("tan(0.5)"), value.tan());
+        assert_eq!(test_eval("sinh(0.5)"), value.sinh());
+        assert_eq!(test_eval("cosh(0.5)"), value.cosh());
+        assert_eq!(test_eval("tanh(0.5)"), value.tanh());
+        assert_eq!(test_eval("asin(0.5)"), value.asin());
+        assert_eq!(test_eval("acos(0.5)"), value.acos());
+        assert_eq!(test_eval("atan(0.5)"), value.atan());
+        assert_eq!(test_eval("asinh(0.5)"), value.asinh());
+        assert_eq!(test_eval("acosh(1.5)"), value2.acosh());
+        assert_eq!(test_eval("atanh(0.5)"), value.atanh());
     }
 
 
     #[test]
     fn eval_casts() {
-        assert_eq!(parse_and_eval("i8(-1)"), -1.0);
-        assert_eq!(parse_and_eval("i8(0)"), 0.0);
-        assert_eq!(parse_and_eval("i8(1)"), 1.0);
-        assert_eq!(parse_and_eval("i8(127)"), 127.0);
-        assert_eq!(parse_and_eval("i8(128)"), -128.0);
-        assert_eq!(parse_and_eval("i8(129)"), -127.0);
-        assert_eq!(parse_and_eval("i8(255)"), -1.0);
-        assert_eq!(parse_and_eval("i8(256)"), 0.0);
-        assert_eq!(parse_and_eval("i8(257)"), 1.0);
-        assert_eq!(parse_and_eval("i8(32767)"), -1.0);
-        assert_eq!(parse_and_eval("i8(32768)"), 0.0);
-        assert_eq!(parse_and_eval("i8(32769)"), 1.0);
-        assert_eq!(parse_and_eval("i8(65535)"), -1.0);
-        assert_eq!(parse_and_eval("i8(65536)"), 0.0);
-        assert_eq!(parse_and_eval("i8(65537)"), 1.0);
-        assert_eq!(parse_and_eval("i8(2147483647)"), -1.0);
-        assert_eq!(parse_and_eval("i8(2147483648)"), 0.0);
-        assert_eq!(parse_and_eval("i8(2147483649)"), 1.0);
+        assert_eq!(test_eval("i8(-1)"), -1.0);
+        assert_eq!(test_eval("i8(0)"), 0.0);
+        assert_eq!(test_eval("i8(1)"), 1.0);
+        assert_eq!(test_eval("i8(127)"), 127.0);
+        assert_eq!(test_eval("i8(128)"), -128.0);
+        assert_eq!(test_eval("i8(129)"), -127.0);
+        assert_eq!(test_eval("i8(255)"), -1.0);
+        assert_eq!(test_eval("i8(256)"), 0.0);
+        assert_eq!(test_eval("i8(257)"), 1.0);
+        assert_eq!(test_eval("i8(32767)"), -1.0);
+        assert_eq!(test_eval("i8(32768)"), 0.0);
+        assert_eq!(test_eval("i8(32769)"), 1.0);
+        assert_eq!(test_eval("i8(65535)"), -1.0);
+        assert_eq!(test_eval("i8(65536)"), 0.0);
+        assert_eq!(test_eval("i8(65537)"), 1.0);
+        assert_eq!(test_eval("i8(2147483647)"), -1.0);
+        assert_eq!(test_eval("i8(2147483648)"), 0.0);
+        assert_eq!(test_eval("i8(2147483649)"), 1.0);
 
-        assert_eq!(parse_and_eval("u8(-1)"), 255.0);
-        assert_eq!(parse_and_eval("u8(0)"), 0.0);
-        assert_eq!(parse_and_eval("u8(1)"), 1.0);
-        assert_eq!(parse_and_eval("u8(127)"), 127.0);
-        assert_eq!(parse_and_eval("u8(128)"), 128.0);
-        assert_eq!(parse_and_eval("u8(129)"), 129.0);
-        assert_eq!(parse_and_eval("u8(255)"), 255.0);
-        assert_eq!(parse_and_eval("u8(256)"), 0.0);
-        assert_eq!(parse_and_eval("u8(257)"), 1.0);
-        assert_eq!(parse_and_eval("u8(32767)"), 255.0);
-        assert_eq!(parse_and_eval("u8(32768)"), 0.0);
-        assert_eq!(parse_and_eval("u8(32769)"), 1.0);
-        assert_eq!(parse_and_eval("u8(65535)"), 255.0);
-        assert_eq!(parse_and_eval("u8(65536)"), 0.0);
-        assert_eq!(parse_and_eval("u8(65537)"), 1.0);
-        assert_eq!(parse_and_eval("u8(2147483647)"), 255.0);
-        assert_eq!(parse_and_eval("u8(2147483648)"), 0.0);
-        assert_eq!(parse_and_eval("u8(2147483649)"), 1.0);
+        assert_eq!(test_eval("u8(-1)"), 255.0);
+        assert_eq!(test_eval("u8(0)"), 0.0);
+        assert_eq!(test_eval("u8(1)"), 1.0);
+        assert_eq!(test_eval("u8(127)"), 127.0);
+        assert_eq!(test_eval("u8(128)"), 128.0);
+        assert_eq!(test_eval("u8(129)"), 129.0);
+        assert_eq!(test_eval("u8(255)"), 255.0);
+        assert_eq!(test_eval("u8(256)"), 0.0);
+        assert_eq!(test_eval("u8(257)"), 1.0);
+        assert_eq!(test_eval("u8(32767)"), 255.0);
+        assert_eq!(test_eval("u8(32768)"), 0.0);
+        assert_eq!(test_eval("u8(32769)"), 1.0);
+        assert_eq!(test_eval("u8(65535)"), 255.0);
+        assert_eq!(test_eval("u8(65536)"), 0.0);
+        assert_eq!(test_eval("u8(65537)"), 1.0);
+        assert_eq!(test_eval("u8(2147483647)"), 255.0);
+        assert_eq!(test_eval("u8(2147483648)"), 0.0);
+        assert_eq!(test_eval("u8(2147483649)"), 1.0);
 
-        assert_eq!(parse_and_eval("i16(-1)"), -1.0);
-        assert_eq!(parse_and_eval("i16(0)"), 0.0);
-        assert_eq!(parse_and_eval("i16(1)"), 1.0);
-        assert_eq!(parse_and_eval("i16(256)"), 256.0);
-        assert_eq!(parse_and_eval("i16(32767)"), 32767.0);
-        assert_eq!(parse_and_eval("i16(32768)"), -32768.0);
-        assert_eq!(parse_and_eval("i16(32769)"), -32767.0);
-        assert_eq!(parse_and_eval("i16(65535)"), -1.0);
-        assert_eq!(parse_and_eval("i16(65536)"), 0.0);
-        assert_eq!(parse_and_eval("i16(65537)"), 1.0);
-        assert_eq!(parse_and_eval("i16(2147483647)"), -1.0);
-        assert_eq!(parse_and_eval("i16(2147483648)"), 0.0);
-        assert_eq!(parse_and_eval("i16(2147483649)"), 1.0);
+        assert_eq!(test_eval("i16(-1)"), -1.0);
+        assert_eq!(test_eval("i16(0)"), 0.0);
+        assert_eq!(test_eval("i16(1)"), 1.0);
+        assert_eq!(test_eval("i16(256)"), 256.0);
+        assert_eq!(test_eval("i16(32767)"), 32767.0);
+        assert_eq!(test_eval("i16(32768)"), -32768.0);
+        assert_eq!(test_eval("i16(32769)"), -32767.0);
+        assert_eq!(test_eval("i16(65535)"), -1.0);
+        assert_eq!(test_eval("i16(65536)"), 0.0);
+        assert_eq!(test_eval("i16(65537)"), 1.0);
+        assert_eq!(test_eval("i16(2147483647)"), -1.0);
+        assert_eq!(test_eval("i16(2147483648)"), 0.0);
+        assert_eq!(test_eval("i16(2147483649)"), 1.0);
 
-        assert_eq!(parse_and_eval("u16(-1)"), 65535.0);
-        assert_eq!(parse_and_eval("u16(0)"), 0.0);
-        assert_eq!(parse_and_eval("u16(1)"), 1.0);
-        assert_eq!(parse_and_eval("u16(256)"), 256.0);
-        assert_eq!(parse_and_eval("u16(32767)"), 32767.0);
-        assert_eq!(parse_and_eval("u16(32768)"), 32768.0);
-        assert_eq!(parse_and_eval("u16(32769)"), 32769.0);
-        assert_eq!(parse_and_eval("u16(65535)"), 65535.0);
-        assert_eq!(parse_and_eval("u16(65536)"), 0.0);
-        assert_eq!(parse_and_eval("u16(65537)"), 1.0);
-        assert_eq!(parse_and_eval("u16(2147483647)"), 65535.0);
-        assert_eq!(parse_and_eval("u16(2147483648)"), 0.0);
-        assert_eq!(parse_and_eval("u16(2147483649)"), 1.0);
+        assert_eq!(test_eval("u16(-1)"), 65535.0);
+        assert_eq!(test_eval("u16(0)"), 0.0);
+        assert_eq!(test_eval("u16(1)"), 1.0);
+        assert_eq!(test_eval("u16(256)"), 256.0);
+        assert_eq!(test_eval("u16(32767)"), 32767.0);
+        assert_eq!(test_eval("u16(32768)"), 32768.0);
+        assert_eq!(test_eval("u16(32769)"), 32769.0);
+        assert_eq!(test_eval("u16(65535)"), 65535.0);
+        assert_eq!(test_eval("u16(65536)"), 0.0);
+        assert_eq!(test_eval("u16(65537)"), 1.0);
+        assert_eq!(test_eval("u16(2147483647)"), 65535.0);
+        assert_eq!(test_eval("u16(2147483648)"), 0.0);
+        assert_eq!(test_eval("u16(2147483649)"), 1.0);
 
-        assert_eq!(parse_and_eval("i32(-1)"), -1.0);
-        assert_eq!(parse_and_eval("i32(0)"), 0.0);
-        assert_eq!(parse_and_eval("i32(1)"), 1.0);
-        assert_eq!(parse_and_eval("i32(65536)"), 65536.0);
-        assert_eq!(parse_and_eval("i32(2147483647)"), 2147483647.0);
-        assert_eq!(parse_and_eval("i32(2147483648)"), -2147483648.0);
-        assert_eq!(parse_and_eval("i32(2147483649)"), -2147483647.0);
-        assert_eq!(parse_and_eval("i32(4294967295)"), -1.0);
-        assert_eq!(parse_and_eval("i32(4294967296)"), 0.0);
-        assert_eq!(parse_and_eval("i32(4294967297)"), 1.0);
+        assert_eq!(test_eval("i32(-1)"), -1.0);
+        assert_eq!(test_eval("i32(0)"), 0.0);
+        assert_eq!(test_eval("i32(1)"), 1.0);
+        assert_eq!(test_eval("i32(65536)"), 65536.0);
+        assert_eq!(test_eval("i32(2147483647)"), 2147483647.0);
+        assert_eq!(test_eval("i32(2147483648)"), -2147483648.0);
+        assert_eq!(test_eval("i32(2147483649)"), -2147483647.0);
+        assert_eq!(test_eval("i32(4294967295)"), -1.0);
+        assert_eq!(test_eval("i32(4294967296)"), 0.0);
+        assert_eq!(test_eval("i32(4294967297)"), 1.0);
 
-        assert_eq!(parse_and_eval("u32(-1)"), 4294967295.0);
-        assert_eq!(parse_and_eval("u32(0)"), 0.0);
-        assert_eq!(parse_and_eval("u32(1)"), 1.0);
-        assert_eq!(parse_and_eval("u32(65536)"), 65536.0);
-        assert_eq!(parse_and_eval("u32(2147483647)"), 2147483647.0);
-        assert_eq!(parse_and_eval("u32(2147483648)"), 2147483648.0);
-        assert_eq!(parse_and_eval("u32(2147483649)"), 2147483649.0);
-        assert_eq!(parse_and_eval("u32(4294967295)"), 4294967295.0);
-        assert_eq!(parse_and_eval("u32(4294967296)"), 0.0);
-        assert_eq!(parse_and_eval("u32(4294967297)"), 1.0);
+        assert_eq!(test_eval("u32(-1)"), 4294967295.0);
+        assert_eq!(test_eval("u32(0)"), 0.0);
+        assert_eq!(test_eval("u32(1)"), 1.0);
+        assert_eq!(test_eval("u32(65536)"), 65536.0);
+        assert_eq!(test_eval("u32(2147483647)"), 2147483647.0);
+        assert_eq!(test_eval("u32(2147483648)"), 2147483648.0);
+        assert_eq!(test_eval("u32(2147483649)"), 2147483649.0);
+        assert_eq!(test_eval("u32(4294967295)"), 4294967295.0);
+        assert_eq!(test_eval("u32(4294967296)"), 0.0);
+        assert_eq!(test_eval("u32(4294967297)"), 1.0);
     }
 
 
     #[test]
     fn eval_special_constants() {
-        assert_eq!(parse_and_eval("e"), f64::consts::E);
-        assert_eq!(parse_and_eval("pi"), f64::consts::PI);
+        assert_eq!(test_eval("e"), f64::consts::E);
+        assert_eq!(test_eval("pi"), f64::consts::PI);
     }
 
 
-    fn parse_and_eval(expression: &str) -> f64 {
+    #[test]
+    fn eval_invalid_operators() {
+        test_eval_error("a = b", "Invalid use of = operator.");
+        test_eval_error("a ? b", "Invalid use of ? operator.");
+        test_eval_error("a : b", "Invalid use of : operator.");
+    }
+
+
+    fn test_eval(expression: &str) -> f64 {
         let mut tokenizer = Tokenizer::new(expression).peekable();
         let expression = parse(&mut tokenizer, false).unwrap();
-        evaluate(&expression)
+        evaluate(&expression).unwrap()
+    }
+
+
+    fn test_eval_error(expression: &str, expected_error: &str) {
+        let mut tokenizer = Tokenizer::new(expression).peekable();
+        let expression = parse(&mut tokenizer, false).unwrap();
+        let error = evaluate(&expression).unwrap_err();
+        assert_eq!(error, expected_error);
     }
 }

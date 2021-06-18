@@ -30,7 +30,7 @@ fn evaluate(line: &str) -> Result<(), String> {
     let expression = expr::parse(&mut tokenizer, false)?;
 
     println!("{}", expression);
-    println!("{}", expr::evaluate(&expression));
+    println!("{}", expr::evaluate(&expression)?);
 
     Ok(())
 }

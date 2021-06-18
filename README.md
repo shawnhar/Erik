@@ -9,7 +9,6 @@ My Rust calculator is called Erik, because a rusty version of Eric can surely be
 other than Erik the Red...
 
 TODO:
-- error handling for invalid operator execution
 - functions
 - commas for multi-expression lines
 - quit
