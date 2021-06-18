@@ -1,6 +1,7 @@
 use std::fmt;
 use std::iter::Peekable;
 use crate::ops;
+use crate::ops::{OpFunction, OperatorRef};
 use crate::tokens::{Token, Tokenizer};
 
 
@@ -8,8 +9,8 @@ use crate::tokens::{Token, Tokenizer};
 #[derive(Debug)]
 pub enum ExpressionNode {
     Constant { value: f64 },
-    Operator { op: ops::OperatorRef, args: Vec<ExpressionNode> },
-    Function { name: String,         args: Vec<ExpressionNode> },
+    Operator { op: OperatorRef, args: Vec<ExpressionNode> },
+    Function { name: String,    args: Vec<ExpressionNode> },
 }
 
 
@@ -36,7 +37,7 @@ impl fmt::Display for ExpressionNode {
 struct Parser
 {
     current: Option<ExpressionNode>,
-    stack: Vec<(ops::OperatorRef, Option<ExpressionNode>)>,
+    stack: Vec<(OperatorRef, Option<ExpressionNode>)>,
 }
 
 
@@ -80,7 +81,7 @@ impl Parser {
 
 
     // Pushes an operator onto the stack, performing a shift/reduce loop based on precedence.
-    fn push_operator(&mut self, mut op: ops::OperatorRef) -> Result<(), String> {
+    fn push_operator(&mut self, mut op: OperatorRef) -> Result<(), String> {
         // Turn binary subtraction into unary negation if there is no current value.
         if op == "-" && self.current.is_none() {
             op = &ops::NEGATE;
@@ -166,7 +167,7 @@ impl Parser {
 
 
     // Decides whether we are dealing with a binary or ternary operator.
-    fn binary_or_ternary(op: ops::OperatorRef, x: ExpressionNode, mut y: ExpressionNode) -> ExpressionNode {
+    fn binary_or_ternary(op: OperatorRef, x: ExpressionNode, mut y: ExpressionNode) -> ExpressionNode {
         if op == "?" {
             if let ExpressionNode::Operator{ op: y_op, args: ref mut y_args } = y {
                 if y_op == ":" {
@@ -284,25 +285,28 @@ pub fn evaluate(expression: &ExpressionNode) -> f64 {
 }
 
 
-fn evaluate_operator(op: ops::OperatorRef, args: &Vec<ExpressionNode>) -> f64 {
+fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>) -> f64 {
     match op.function {
-        ops::OpFunction::Nullary(function) => function(),
-        ops::OpFunction::Unary  (function) => function(evaluate(&args[0])),
-        ops::OpFunction::Binary (function) => function(evaluate(&args[0]), evaluate(&args[1])),
+        OpFunction::Nullary(function) => function(),
+        OpFunction::Unary  (function) => function(evaluate(&args[0])),
+        OpFunction::Binary (function) => function(evaluate(&args[0]), evaluate(&args[1])),
 
-        ops::OpFunction::Lazy(function) => {
+        OpFunction::Lazy(function) => {
+            // Used by the ||, &&, and ?: operators. Applying a function to the first
+            // argument indicates which of the arguments to return. Unused arguments
+            // are never evaluated. This lazy evaluation enables recursive functions.
             let arg0 = evaluate(&args[0]);
-            let which = function(arg0);
+            let which_arg = function(arg0);
             
-            if which == 0 {
+            if which_arg == 0 {
                 arg0
             }
             else {
-                evaluate(&args[which])
+                evaluate(&args[which_arg])
             }
         },
 
-        ops::OpFunction::Invalid => panic!("should have better error handling here")
+        OpFunction::Invalid => panic!("should have better error handling here")
     }
 }
 
