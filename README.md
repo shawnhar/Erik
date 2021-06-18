@@ -7,3 +7,15 @@ a Rust version of that in just one week!
 
 My Rust calculator is called Erik, because a rusty version of Eric can surely be nothing 
 other than Erik the Red...
+
+TODO:
+- error handling for invalid operator execution
+- functions
+- commas for multi-expression lines
+- quit
+- help
+- ls
+- number base for display
+- load/save
+- readme
+- write up notes on Rust
