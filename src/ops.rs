@@ -93,7 +93,7 @@ fn make_op_invalid(name: &'static str, precedence: Precedence, arity: u32, is_ri
 }
 
 
-// Helpers for converting between bool and float. C style, nonzero is true.
+// Helpers for converting values between different types.
 fn to_bool(x: f64) -> bool {
     x != 0.0
 }
@@ -102,9 +102,13 @@ fn to_float(x: bool) -> f64 {
     if x { 1.0 } else { 0.0 }
 }
 
+fn to_uint(x: f64) -> u32 {
+    x as i64 as u32
+}
+
 
 lazy_static! {
-    pub static ref OPERATORS: [Operator; 56] = [
+    pub static ref OPERATORS: [Operator; 57] = [
         // Special markers that should never actually be evaluated.
         make_op_invalid("(", Precedence::Brace,   0, false),
         make_op_invalid(")", Precedence::Brace,   0, false),
@@ -120,12 +124,12 @@ lazy_static! {
         make_op_1("!",     Precedence::Unary,         |x: f64| -> f64   { to_float(!to_bool(x))          }),
 
         // Bitwise operators.
-        make_op_2("|",     Precedence::BinaryOr,    |x: f64, y: f64| -> f64 { ((x as u32) |  (y as u32)) as f64 }),
-        make_op_2("^^",    Precedence::BinaryXor,   |x: f64, y: f64| -> f64 { ((x as u32) ^  (y as u32)) as f64 }),
-        make_op_2("&",     Precedence::BinaryAnd,   |x: f64, y: f64| -> f64 { ((x as u32) &  (y as u32)) as f64 }),
-        make_op_2("<<",    Precedence::Shift,       |x: f64, y: f64| -> f64 { ((x as u32) << (y as u32)) as f64 }),
-        make_op_2(">>",    Precedence::Shift,       |x: f64, y: f64| -> f64 { ((x as u32) >> (y as u32)) as f64 }),
-        make_op_1("~",     Precedence::Unary,       |x: f64| -> f64         { !(x as u32)                as f64 }),
+        make_op_2("|",     Precedence::BinaryOr,    |x: f64, y: f64| -> f64 { (to_uint(x) |  to_uint(y)) as f64 }),
+        make_op_2("^^",    Precedence::BinaryXor,   |x: f64, y: f64| -> f64 { (to_uint(x) ^  to_uint(y)) as f64 }),
+        make_op_2("&",     Precedence::BinaryAnd,   |x: f64, y: f64| -> f64 { (to_uint(x) &  to_uint(y)) as f64 }),
+        make_op_2("<<",    Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_uint(x) << to_uint(y)) as f64 }),
+        make_op_2(">>",    Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_uint(x) >> to_uint(y)) as f64 }),
+        make_op_1("~",     Precedence::Unary,       |x: f64| -> f64         { !to_uint(x)                as f64 }),
 
         // Comparisons
         make_op_2("==",    Precedence::CompareEq,   |x: f64, y: f64| -> f64 { to_float(x == y) }),
@@ -140,7 +144,7 @@ lazy_static! {
         make_op_2("-",     Precedence::Addition,    |x: f64, y: f64| -> f64 { x - y }),
         make_op_2("*",     Precedence::Multiply,    |x: f64, y: f64| -> f64 { x * y }),
         make_op_2("/",     Precedence::Multiply,    |x: f64, y: f64| -> f64 { x / y }),
-        make_op_2("%",     Precedence::Multiply,    |x: f64, y: f64| -> f64 { x % y }),
+        make_op_2("%",     Precedence::Multiply,    |x: f64, y: f64| -> f64 { x.rem_euclid(y) }),
         make_op_2("^",     Precedence::Power,       |x: f64, y: f64| -> f64 { x.powf(y) }),
 
         // Math functions.
@@ -150,6 +154,7 @@ lazy_static! {
         make_op_1("exp",   Precedence::None,        |x: f64| -> f64 { x.exp()   }),
         make_op_1("ln",    Precedence::None,        |x: f64| -> f64 { x.ln()    }),
         make_op_1("log",   Precedence::None,        |x: f64| -> f64 { x.log10() }),
+        make_op_1("log2",  Precedence::None,        |x: f64| -> f64 { x.log2()  }),
         make_op_1("abs",   Precedence::None,        |x: f64| -> f64 { x.abs()   }),
         make_op_1("ceil",  Precedence::None,        |x: f64| -> f64 { x.ceil()  }),
         make_op_1("floor", Precedence::None,        |x: f64| -> f64 { x.floor() }),
@@ -170,12 +175,12 @@ lazy_static! {
         make_op_1("atanh", Precedence::None,        |x: f64| -> f64 { x.atanh() }),
 
         // Casts.
-        make_op_1("i8",    Precedence::None,        |x: f64| -> f64 { (x as i8)  as f64 }),
-        make_op_1("u8",    Precedence::None,        |x: f64| -> f64 { (x as u8)  as f64 }),
-        make_op_1("i16",   Precedence::None,        |x: f64| -> f64 { (x as i16) as f64 }),
-        make_op_1("u16",   Precedence::None,        |x: f64| -> f64 { (x as u16) as f64 }),
-        make_op_1("i32",   Precedence::None,        |x: f64| -> f64 { (x as i32) as f64 }),
-        make_op_1("u32",   Precedence::None,        |x: f64| -> f64 { (x as u32) as f64 }),
+        make_op_1("i8",    Precedence::None,        |x: f64| -> f64 { (x as i64 as i8)  as f64 }),
+        make_op_1("u8",    Precedence::None,        |x: f64| -> f64 { (x as i64 as u8)  as f64 }),
+        make_op_1("i16",   Precedence::None,        |x: f64| -> f64 { (x as i64 as i16) as f64 }),
+        make_op_1("u16",   Precedence::None,        |x: f64| -> f64 { (x as i64 as u16) as f64 }),
+        make_op_1("i32",   Precedence::None,        |x: f64| -> f64 { (x as i64 as i32) as f64 }),
+        make_op_1("u32",   Precedence::None,        |x: f64| -> f64 { (x as i64 as u32) as f64 }),
 
         // Constants.
         make_op_0("e",     Precedence::None,        || -> f64 { f64::consts::E  }),
