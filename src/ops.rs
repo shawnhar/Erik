@@ -102,13 +102,17 @@ fn to_float(x: bool) -> f64 {
     if x { 1.0 } else { 0.0 }
 }
 
+fn to_int(x: f64) -> i32 {
+    x as i64 as i32
+}
+
 fn to_uint(x: f64) -> u32 {
     x as i64 as u32
 }
 
 
 lazy_static! {
-    pub static ref OPERATORS: [Operator; 57] = [
+    pub static ref OPERATORS: [Operator; 58] = [
         // Special markers that should never actually be evaluated.
         make_op_invalid("(", Precedence::Brace,   0, false),
         make_op_invalid(")", Precedence::Brace,   0, false),
@@ -124,12 +128,13 @@ lazy_static! {
         make_op_1("!",     Precedence::Unary,         |x: f64| -> f64   { to_float(!to_bool(x))          }),
 
         // Bitwise operators.
-        make_op_2("|",     Precedence::BinaryOr,    |x: f64, y: f64| -> f64 { (to_uint(x) |  to_uint(y)) as f64 }),
-        make_op_2("^^",    Precedence::BinaryXor,   |x: f64, y: f64| -> f64 { (to_uint(x) ^  to_uint(y)) as f64 }),
-        make_op_2("&",     Precedence::BinaryAnd,   |x: f64, y: f64| -> f64 { (to_uint(x) &  to_uint(y)) as f64 }),
-        make_op_2("<<",    Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_uint(x) << to_uint(y)) as f64 }),
-        make_op_2(">>",    Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_uint(x) >> to_uint(y)) as f64 }),
-        make_op_1("~",     Precedence::Unary,       |x: f64| -> f64         { !to_uint(x)                as f64 }),
+        make_op_2("|",     Precedence::BinaryOr,    |x: f64, y: f64| -> f64 { (to_int(x)  |  to_int(y))        as f64 }),
+        make_op_2("^^",    Precedence::BinaryXor,   |x: f64, y: f64| -> f64 { (to_int(x)  ^  to_int(y))        as f64 }),
+        make_op_2("&",     Precedence::BinaryAnd,   |x: f64, y: f64| -> f64 { (to_int(x)  &  to_int(y))        as f64 }),
+        make_op_2("<<",    Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_int(x)  << (to_int(y) & 31)) as f64 }),
+        make_op_2(">>",    Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_uint(x) >> (to_int(y) & 31)) as f64 }),
+        make_op_2(">>>",   Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_int(x)  >> (to_int(y) & 31)) as f64 }),
+        make_op_1("~",     Precedence::Unary,       |x: f64| -> f64         { !to_int(x)                       as f64 }),
 
         // Comparisons
         make_op_2("==",    Precedence::CompareEq,   |x: f64, y: f64| -> f64 { to_float(x == y) }),
