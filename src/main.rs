@@ -19,7 +19,7 @@ pub struct Context {
     functions: HashMap<String, expr::Function>,
 
     // Where to write output, which can be redirected by unit tests.
-    // TODO output: &<'a> dyn std::io::Write,
+    output: Box<dyn std::io::Write>,
 }
 
 
@@ -27,7 +27,7 @@ impl Context {
     pub fn new() -> Context {
         Context {
             functions: HashMap::new(),
-            // TODO output: std::io::stdout(),
+            output: Box::new(std::io::stdout()),
         }
     }
 }
@@ -43,7 +43,7 @@ fn main() {
 
     for line in input {
         if let Err(message) = evaluate_line(&line, &mut context) {
-            println!("{}", message);
+            writeln!(context.output, "{}", message).unwrap();
         }
     }
 }
@@ -61,7 +61,7 @@ fn evaluate_line(line: &str, context: &mut Context) -> Result<(), String> {
         }
         else {
             // Evaluate an expression.
-            println!("{}", expr::evaluate(&expression, context)?);
+            writeln!(context.output, "{}", expr::evaluate(&expression, context)?).unwrap();
         }
     }
 

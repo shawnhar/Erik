@@ -10,7 +10,6 @@ other than Erik the Red...
 
 TODO:
 - Unit test user defined functions
-- TODOs in main for redirecting output
 - quit
 - help
 - ls
