@@ -1,6 +1,7 @@
 use std::f64;
 use std::fmt;
 use std::iter::Peekable;
+use std::mem;
 use crate::Context;
 use crate::ops;
 use crate::ops::{OpFunction, OperatorRef};
@@ -396,37 +397,37 @@ fn evaluate_function(name: &String, args: &Vec<ExpressionNode>, frame: &Function
 }
 
 
+// If given an expression of the form x=y or f(x)=y, rearranges it into a user defined function.
 pub fn deconstruct_function_definition(expression: &mut ExpressionNode) -> Option<(Function, String)> {
 
-    // we want something like x=y or f(x)=y
+    // Do we have an x=y expression?
+    if let ExpressionNode::Operator{ op: assign_op, args: assign_args } = expression {
+        if assign_op == "=" {
 
-    match expression {
-        ExpressionNode::Operator{ op: assign_op, args: assign_args } if assign_op == "=" => {
-            match &assign_args[0] {
-                ExpressionNode::Function{ name: function_name, args: function_args } => {
-                    let mut n = vec![];
-                    
-                    for arg in function_args {
-                        match arg {
-                            ExpressionNode::Function{ name: arg_name, args: arg_args } if arg_args.is_empty() => n.push(arg_name.clone()),
-                            _ => return None// TODO error on failure
-                        }
+            // Is x of type Function?
+            if let ExpressionNode::Function{ name: function_name, args: function_args } = &mut assign_args[0] {
+
+                // Are all args passed to x themselves of type Function?
+                let mut args = Vec::with_capacity(function_args.len());
+
+                for arg in function_args {
+                    match arg {
+                        ExpressionNode::Function{ name: arg_name, args: arg_args } if arg_args.is_empty() => args.push(arg_name),
+                        _ => return None
                     }
-                    
-                    let name = function_name.clone();
-                    
-                    let mut result = ExpressionNode::Constant { value: 0.0 };
-                    std::mem::swap(&mut assign_args[1], &mut result);
-                    
-                    Some((Function { expression: result, args: n }, name))
                 }
-                
-                _ => None
+
+                // Take ownership and return the deconstructed function data.
+                let function_name = mem::take(function_name);
+                let args = args.iter_mut().map(|arg| { mem::take(*arg) }).collect();
+                let function_body = assign_args.pop().unwrap();
+
+                return Some((Function { expression: function_body, args }, function_name));
             }
         }
-        
-        _ => None
     }
+
+    None
 }
 
 
