@@ -23,12 +23,6 @@ rusty version of that can surely be nothing other than Erik the Red...
     
     > factorial(n) = n>1 ? n*factorial(n-1) : 1
     
-    > factorial(2)
-    2
-    
-    > factorial(3)
-    6
-    
     > factorial(4)
     24
     
