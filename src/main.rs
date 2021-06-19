@@ -8,8 +8,9 @@ extern crate lazy_static;
 
 use std::collections::HashMap;
 use std::env;
+use std::iter::Peekable;
 use input::InputSource;
-use tokens::Tokenizer;
+use tokens::{Token, Tokenizer};
 
 
 // Global context stores all state of the calculator.
@@ -17,17 +18,13 @@ pub struct Context {
 
     // User defined functions.
     functions: HashMap<String, expr::Function>,
-
-    // Where to write output, which can be redirected by unit tests.
-    output: Box<dyn std::io::Write>,
 }
 
 
 impl Context {
     pub fn new() -> Context {
         Context {
-            functions: HashMap::new(),
-            output: Box::new(std::io::stdout()),
+            functions: HashMap::new()
         }
     }
 }
@@ -42,16 +39,23 @@ fn main() {
     let input = InputSource::new(args);
 
     for line in input {
-        if let Err(message) = evaluate_line(&line, &mut context) {
-            writeln!(context.output, "{}", message).unwrap();
+        match evaluate_line(&line, &mut context) {
+            Ok(true)     => {},
+            Ok(false)    => break,
+            Err(message) => println!("{}", message)
         }
     }
 }
 
 
-fn evaluate_line(line: &str, context: &mut Context) -> Result<(), String> {
+fn evaluate_line(line: &str, context: &mut Context) -> Result<bool, String> {
     let mut tokenizer = Tokenizer::new(&line).peekable();
 
+    // Is this a special command?
+    if let Some(result) = dispatch_command(&mut tokenizer, context) {
+        return Ok(result);
+    }
+    
     while tokenizer.peek().is_some() {
         let mut expression = expr::parse(&mut tokenizer, false)?;
 
@@ -61,12 +65,24 @@ fn evaluate_line(line: &str, context: &mut Context) -> Result<(), String> {
         }
         else {
             // Evaluate an expression.
-            writeln!(context.output, "{}", expr::evaluate(&expression, context)?).unwrap();
+            println!("{}", expr::evaluate(&expression, context)?);
         }
     }
 
-    Ok(())
+    Ok(true)
 }
 
 
-// TODO: test comma multiple execution
+fn dispatch_command(tokenizer: &mut Peekable<Tokenizer>, context: &mut Context) -> Option<bool> {
+    if let Some(Ok(Token::Text(command))) = tokenizer.peek() {
+        match *command {
+            "q"    => Some(false),
+            "quit" => Some(false),
+            "exit" => Some(false),
+            _      => None
+        }
+    }
+    else {
+        None
+    }
+}

@@ -9,7 +9,6 @@ My Rust calculator is called Erik, because a rusty version of Eric can surely be
 other than Erik the Red...
 
 TODO:
-- quit
 - help
 - ls
 - number base for display
