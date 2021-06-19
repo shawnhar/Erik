@@ -112,15 +112,15 @@ fn to_uint(x: f64) -> u32 {
 
 
 lazy_static! {
-    pub static ref OPERATORS: [Operator; 58] = [
+    pub static ref OPERATORS: [Operator; 27] = [
         // Special markers that should never actually be evaluated.
-        make_op_invalid("(", Precedence::Brace,   0, false),
-        make_op_invalid(")", Precedence::Brace,   0, false),
-        make_op_invalid("=", Precedence::Assign,  2, false),
+        make_op_invalid("(", Precedence::Brace,    0, false),
+        make_op_invalid(")", Precedence::Brace,    0, false),
+        make_op_invalid("=", Precedence::Assign,   2, false),
 
         // Component parts of the ternary ?: operator.
-        make_op_invalid("?", Precedence::Ternary, 2, true),
-        make_op_invalid(":", Precedence::Ternary, 2, true),
+        make_op_invalid("?", Precedence::Ternary,  2, true),
+        make_op_invalid(":", Precedence::Ternary,  2, true),
 
         // Boolean operators.
         make_op_lazy("||", Precedence::LogicalOr,  2, |x: f64| -> usize { if to_bool(x) { 0 } else { 1 } }),
@@ -128,68 +128,71 @@ lazy_static! {
         make_op_1("!",     Precedence::Unary,         |x: f64| -> f64   { to_float(!to_bool(x))          }),
 
         // Bitwise operators.
-        make_op_2("|",     Precedence::BinaryOr,    |x: f64, y: f64| -> f64 { (to_int(x)  |  to_int(y))        as f64 }),
-        make_op_2("^^",    Precedence::BinaryXor,   |x: f64, y: f64| -> f64 { (to_int(x)  ^  to_int(y))        as f64 }),
-        make_op_2("&",     Precedence::BinaryAnd,   |x: f64, y: f64| -> f64 { (to_int(x)  &  to_int(y))        as f64 }),
-        make_op_2("<<",    Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_int(x)  << (to_int(y) & 31)) as f64 }),
-        make_op_2(">>",    Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_uint(x) >> (to_int(y) & 31)) as f64 }),
-        make_op_2(">>>",   Precedence::Shift,       |x: f64, y: f64| -> f64 { (to_int(x)  >> (to_int(y) & 31)) as f64 }),
-        make_op_1("~",     Precedence::Unary,       |x: f64| -> f64         { !to_int(x)                       as f64 }),
+        make_op_2("|",     Precedence::BinaryOr,      |x: f64, y: f64| -> f64 { (to_int(x)  |  to_int(y))        as f64 }),
+        make_op_2("^^",    Precedence::BinaryXor,     |x: f64, y: f64| -> f64 { (to_int(x)  ^  to_int(y))        as f64 }),
+        make_op_2("&",     Precedence::BinaryAnd,     |x: f64, y: f64| -> f64 { (to_int(x)  &  to_int(y))        as f64 }),
+        make_op_2("<<",    Precedence::Shift,         |x: f64, y: f64| -> f64 { (to_int(x)  << (to_int(y) & 31)) as f64 }),
+        make_op_2(">>",    Precedence::Shift,         |x: f64, y: f64| -> f64 { (to_uint(x) >> (to_int(y) & 31)) as f64 }),
+        make_op_2(">>>",   Precedence::Shift,         |x: f64, y: f64| -> f64 { (to_int(x)  >> (to_int(y) & 31)) as f64 }),
+        make_op_1("~",     Precedence::Unary,         |x: f64| -> f64         { !to_int(x)                       as f64 }),
 
         // Comparisons
-        make_op_2("==",    Precedence::CompareEq,   |x: f64, y: f64| -> f64 { to_float(x == y) }),
-        make_op_2("!=",    Precedence::CompareEq,   |x: f64, y: f64| -> f64 { to_float(x != y) }),
-        make_op_2("<",     Precedence::CompareDiff, |x: f64, y: f64| -> f64 { to_float(x < y)  }),
-        make_op_2(">",     Precedence::CompareDiff, |x: f64, y: f64| -> f64 { to_float(x > y)  }),
-        make_op_2("<=",    Precedence::CompareDiff, |x: f64, y: f64| -> f64 { to_float(x <= y) }),
-        make_op_2(">=",    Precedence::CompareDiff, |x: f64, y: f64| -> f64 { to_float(x >= y) }),
+        make_op_2("==",    Precedence::CompareEq,     |x: f64, y: f64| -> f64 { to_float(x == y) }),
+        make_op_2("!=",    Precedence::CompareEq,     |x: f64, y: f64| -> f64 { to_float(x != y) }),
+        make_op_2("<",     Precedence::CompareDiff,   |x: f64, y: f64| -> f64 { to_float(x < y)  }),
+        make_op_2(">",     Precedence::CompareDiff,   |x: f64, y: f64| -> f64 { to_float(x > y)  }),
+        make_op_2("<=",    Precedence::CompareDiff,   |x: f64, y: f64| -> f64 { to_float(x <= y) }),
+        make_op_2(">=",    Precedence::CompareDiff,   |x: f64, y: f64| -> f64 { to_float(x >= y) }),
 
         // Arithmetic.
-        make_op_2("+",     Precedence::Addition,    |x: f64, y: f64| -> f64 { x + y }),
-        make_op_2("-",     Precedence::Addition,    |x: f64, y: f64| -> f64 { x - y }),
-        make_op_2("*",     Precedence::Multiply,    |x: f64, y: f64| -> f64 { x * y }),
-        make_op_2("/",     Precedence::Multiply,    |x: f64, y: f64| -> f64 { x / y }),
-        make_op_2("%",     Precedence::Multiply,    |x: f64, y: f64| -> f64 { x.rem_euclid(y) }),
-        make_op_2("^",     Precedence::Power,       |x: f64, y: f64| -> f64 { x.powf(y) }),
+        make_op_2("+",     Precedence::Addition,      |x: f64, y: f64| -> f64 { x + y }),
+        make_op_2("-",     Precedence::Addition,      |x: f64, y: f64| -> f64 { x - y }),
+        make_op_2("*",     Precedence::Multiply,      |x: f64, y: f64| -> f64 { x * y }),
+        make_op_2("/",     Precedence::Multiply,      |x: f64, y: f64| -> f64 { x / y }),
+        make_op_2("%",     Precedence::Multiply,      |x: f64, y: f64| -> f64 { x.rem_euclid(y) }),
+        make_op_2("^",     Precedence::Power,         |x: f64, y: f64| -> f64 { x.powf(y) }),
+    ];
 
+
+    pub static ref FUNCTIONS: [Operator; 31] = [
         // Math functions.
-        make_op_2("max",   Precedence::None,        |x: f64, y: f64| -> f64 { if x > y { x } else { y } }),
-        make_op_2("min",   Precedence::None,        |x: f64, y: f64| -> f64 { if x < y { x } else { y } }),
-        make_op_1("sqrt",  Precedence::None,        |x: f64| -> f64 { x.sqrt()  }),
-        make_op_1("exp",   Precedence::None,        |x: f64| -> f64 { x.exp()   }),
-        make_op_1("ln",    Precedence::None,        |x: f64| -> f64 { x.ln()    }),
-        make_op_1("log",   Precedence::None,        |x: f64| -> f64 { x.log10() }),
-        make_op_1("log2",  Precedence::None,        |x: f64| -> f64 { x.log2()  }),
-        make_op_1("abs",   Precedence::None,        |x: f64| -> f64 { x.abs()   }),
-        make_op_1("ceil",  Precedence::None,        |x: f64| -> f64 { x.ceil()  }),
-        make_op_1("floor", Precedence::None,        |x: f64| -> f64 { x.floor() }),
-        make_op_1("round", Precedence::None,        |x: f64| -> f64 { x.round() }),
+        make_op_2("max",   Precedence::None,          |x: f64, y: f64| -> f64 { if x > y { x } else { y } }),
+        make_op_2("min",   Precedence::None,          |x: f64, y: f64| -> f64 { if x < y { x } else { y } }),
+        make_op_1("sqrt",  Precedence::None,          |x: f64| -> f64 { x.sqrt()  }),
+        make_op_1("exp",   Precedence::None,          |x: f64| -> f64 { x.exp()   }),
+        make_op_1("ln",    Precedence::None,          |x: f64| -> f64 { x.ln()    }),
+        make_op_1("log",   Precedence::None,          |x: f64| -> f64 { x.log10() }),
+        make_op_1("log2",  Precedence::None,          |x: f64| -> f64 { x.log2()  }),
+        make_op_1("abs",   Precedence::None,          |x: f64| -> f64 { x.abs()   }),
+        make_op_1("ceil",  Precedence::None,          |x: f64| -> f64 { x.ceil()  }),
+        make_op_1("floor", Precedence::None,          |x: f64| -> f64 { x.floor() }),
+        make_op_1("round", Precedence::None,          |x: f64| -> f64 { x.round() }),
 
         // Trig.
-        make_op_1("sin",   Precedence::None,        |x: f64| -> f64 { x.sin()   }),
-        make_op_1("cos",   Precedence::None,        |x: f64| -> f64 { x.cos()   }),
-        make_op_1("tan",   Precedence::None,        |x: f64| -> f64 { x.tan()   }),
-        make_op_1("sinh",  Precedence::None,        |x: f64| -> f64 { x.sinh()  }),
-        make_op_1("cosh",  Precedence::None,        |x: f64| -> f64 { x.cosh()  }),
-        make_op_1("tanh",  Precedence::None,        |x: f64| -> f64 { x.tanh()  }),
-        make_op_1("asin",  Precedence::None,        |x: f64| -> f64 { x.asin()  }),
-        make_op_1("acos",  Precedence::None,        |x: f64| -> f64 { x.acos()  }),
-        make_op_1("atan",  Precedence::None,        |x: f64| -> f64 { x.atan()  }),
-        make_op_1("asinh", Precedence::None,        |x: f64| -> f64 { x.asinh() }),
-        make_op_1("acosh", Precedence::None,        |x: f64| -> f64 { x.acosh() }),
-        make_op_1("atanh", Precedence::None,        |x: f64| -> f64 { x.atanh() }),
+        make_op_1("sin",   Precedence::None,          |x: f64| -> f64 { x.sin()   }),
+        make_op_1("cos",   Precedence::None,          |x: f64| -> f64 { x.cos()   }),
+        make_op_1("tan",   Precedence::None,          |x: f64| -> f64 { x.tan()   }),
+        make_op_1("sinh",  Precedence::None,          |x: f64| -> f64 { x.sinh()  }),
+        make_op_1("cosh",  Precedence::None,          |x: f64| -> f64 { x.cosh()  }),
+        make_op_1("tanh",  Precedence::None,          |x: f64| -> f64 { x.tanh()  }),
+        make_op_1("asin",  Precedence::None,          |x: f64| -> f64 { x.asin()  }),
+        make_op_1("acos",  Precedence::None,          |x: f64| -> f64 { x.acos()  }),
+        make_op_1("atan",  Precedence::None,          |x: f64| -> f64 { x.atan()  }),
+        make_op_1("asinh", Precedence::None,          |x: f64| -> f64 { x.asinh() }),
+        make_op_1("acosh", Precedence::None,          |x: f64| -> f64 { x.acosh() }),
+        make_op_1("atanh", Precedence::None,          |x: f64| -> f64 { x.atanh() }),
 
         // Casts.
-        make_op_1("i8",    Precedence::None,        |x: f64| -> f64 { (x as i64 as i8)  as f64 }),
-        make_op_1("u8",    Precedence::None,        |x: f64| -> f64 { (x as i64 as u8)  as f64 }),
-        make_op_1("i16",   Precedence::None,        |x: f64| -> f64 { (x as i64 as i16) as f64 }),
-        make_op_1("u16",   Precedence::None,        |x: f64| -> f64 { (x as i64 as u16) as f64 }),
-        make_op_1("i32",   Precedence::None,        |x: f64| -> f64 { (x as i64 as i32) as f64 }),
-        make_op_1("u32",   Precedence::None,        |x: f64| -> f64 { (x as i64 as u32) as f64 }),
+        make_op_1("i8",    Precedence::None,          |x: f64| -> f64 { (x as i64 as i8)  as f64 }),
+        make_op_1("u8",    Precedence::None,          |x: f64| -> f64 { (x as i64 as u8)  as f64 }),
+        make_op_1("i16",   Precedence::None,          |x: f64| -> f64 { (x as i64 as i16) as f64 }),
+        make_op_1("u16",   Precedence::None,          |x: f64| -> f64 { (x as i64 as u16) as f64 }),
+        make_op_1("i32",   Precedence::None,          |x: f64| -> f64 { (x as i64 as i32) as f64 }),
+        make_op_1("u32",   Precedence::None,          |x: f64| -> f64 { (x as i64 as u32) as f64 }),
 
         // Constants.
-        make_op_0("e",     Precedence::None,        || -> f64 { f64::consts::E  }),
-        make_op_0("pi",    Precedence::None,        || -> f64 { f64::consts::PI }),
+        make_op_0("e",     Precedence::None,          || -> f64 { f64::consts::E  }),
+        make_op_0("pi",    Precedence::None,          || -> f64 { f64::consts::PI }),
     ];
 
 
@@ -201,6 +204,9 @@ lazy_static! {
 
 
 pub fn find_operator(opname: &str) -> Option<OperatorRef> {
-    // Linear search is fine as there aren't that many operators and their names are short.
     OPERATORS.iter().find(|op| op == opname)
+}
+
+pub fn find_function(opname: &str) -> Option<OperatorRef> {
+    FUNCTIONS.iter().find(|op| op == opname)
 }

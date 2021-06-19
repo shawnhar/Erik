@@ -95,6 +95,7 @@ lazy_static! {
         ( "quit", Command::new(quit_command) ),
         ( "exit", Command::new(quit_command) ),
         ( "ls",   Command::new(ls_command)   ),
+        ( "help", Command::new(help_command) ),
     ].iter().cloned().collect();
 }
 
@@ -121,4 +122,33 @@ fn ls_command(context: &Context) -> bool {
     }
     
     true
+}
+
+
+fn help_command(_: &Context) -> bool {
+    print_help("Operators", ops::OPERATORS.iter().map(|op| op.name).collect());
+    print_help("Functions", ops::FUNCTIONS.iter().map(|op| op.name).collect());
+    print_help("Commands",  COMMANDS      .iter().map(|cmd| *cmd.0).collect());
+
+    true
+}
+
+
+fn print_help(title: &str, mut items: Vec<&str>) {
+    println!();
+    println!("{}:", title);
+
+    items.sort();
+
+    let item_width = items.iter().fold(0, |a, i| std::cmp::max(a, i.len())) + 2;
+
+    for line in items.chunks(60 / item_width) {
+        print!("    ");
+
+        for item in line {        
+            print!("{:w$}", item, w = item_width);
+        }
+        
+        println!();
+    }
 }
