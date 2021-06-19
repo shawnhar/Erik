@@ -9,8 +9,5 @@ My Rust calculator is called Erik, because a rusty version of Eric can surely be
 other than Erik the Red...
 
 TODO:
-- number base for display
-- degrees/radians
-- load/save
-- readme
+- write readme
 - write up notes on Rust
