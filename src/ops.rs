@@ -67,29 +67,49 @@ impl PartialEq<str> for OperatorRef {
 }
 
 
-// Helpers reduce repetititiveness of filling in the operator table.
-fn make_op(name: &'static str, precedence: Precedence, arity: u32, is_right_associative: bool, function: OpFunction) -> Operator {
-    Operator { name, precedence, arity, is_right_associative, function }
+// Macros reduce repetitititiveness of filling in the operator table.
+macro_rules! operators {
+    ($($element:tt),*) => {
+        [ $(operator! $element),* ]
+    };
 }
 
-fn make_op_0(name: &'static str, precedence: Precedence, function: fn() -> f64) -> Operator {
-    make_op(name, precedence, 0, false, OpFunction::Nullary(function))
-}
 
-fn make_op_1(name: &'static str, precedence: Precedence, function: fn(f64) -> f64) -> Operator {
-    make_op(name, precedence, 1, false, OpFunction::Unary(function))
-}
+macro_rules! operator {
+    // Matches a nullary function.
+    ($name:literal, || $expression:expr) => {
+        Operator { name:$name, precedence:Precedence::None, arity:0, is_right_associative:false, function:OpFunction::Nullary(|| -> f64 { $expression }) }
+    };
 
-fn make_op_2(name: &'static str, precedence: Precedence, function: fn(f64, f64) -> f64) -> Operator {
-    make_op(name, precedence, 2, false, OpFunction::Binary(function))
-}
+    // Matches a unary function.
+    ($name:literal, |$x:ident| $expression:expr) => {
+        Operator { name:$name, precedence:Precedence::None, arity:1, is_right_associative:false, function:OpFunction::Unary(|$x: f64| -> f64 { $expression }) }
+    };
 
-fn make_op_lazy(name: &'static str, precedence: Precedence, arity: u32, function: fn(f64) -> usize) -> Operator {
-    make_op(name, precedence, arity, false, OpFunction::Lazy(function))
-}
+    // Matches a unary operator.
+    ($name:literal, $precedence:expr, |$x:ident| $expression:expr) => {
+        Operator { name:$name, precedence:$precedence, arity:1, is_right_associative:false, function:OpFunction::Unary(|$x: f64| -> f64 { $expression }) }
+    };
 
-fn make_op_invalid(name: &'static str, precedence: Precedence, arity: u32, is_right_associative: bool) -> Operator {
-    make_op(name, precedence, arity, is_right_associative, OpFunction::Invalid)
+    // Matches a binary function.
+    ($name:literal, |$x:ident, $y:ident| $expression:expr) => {
+        Operator { name:$name, precedence:Precedence::None, arity:2, is_right_associative:false, function:OpFunction::Binary(|$x: f64, $y: f64| -> f64 { $expression }) }
+    };
+
+    // Matches a binary operator.
+    ($name:literal, $precedence:expr, |$x:ident, $y:ident| $expression:expr) => {
+        Operator { name:$name, precedence:$precedence, arity:2, is_right_associative:false, function:OpFunction::Binary(|$x: f64, $y: f64| -> f64 { $expression }) }
+    };
+
+    // Matches a lazily evaluated operator, identified by "lazy" marker keyword.
+    ($name:literal, $precedence:expr, $arity:literal, lazy |$x:ident| $expression:expr) => {
+        Operator { name:$name, precedence:$precedence, arity:$arity, is_right_associative:false, function:OpFunction::Lazy(|$x: f64| -> usize { $expression }) }
+    };
+
+    // Matches a special operator that does not have any evaluation function.
+    ($name:literal, $precedence:expr, $arity:literal, $is_right_associative:literal) => {
+        Operator { name:$name, precedence:$precedence, arity:$arity, is_right_associative:$is_right_associative, function:OpFunction::Invalid }
+    };
 }
 
 
@@ -111,96 +131,95 @@ fn to_uint(x: f64) -> u32 {
 }
 
 
-lazy_static! {
-    pub static ref OPERATORS: [Operator; 27] = [
-        // Special markers that should never actually be evaluated.
-        make_op_invalid("(", Precedence::Brace,    0, false),
-        make_op_invalid(")", Precedence::Brace,    0, false),
-        make_op_invalid("=", Precedence::Assign,   2, false),
+pub static OPERATORS: [Operator; 27] = operators![
+    // Special markers that should never actually be evaluated.
+    { "(",   Precedence::Brace,      0, false },
+    { ")",   Precedence::Brace,      0, false },
+    { "=",   Precedence::Assign,     2, false },
 
-        // Component parts of the ternary ?: operator.
-        make_op_invalid("?", Precedence::Ternary,  2, true),
-        make_op_invalid(":", Precedence::Ternary,  2, true),
+    // Component parts of the ternary ?: operator.
+    { "?",   Precedence::Ternary,    2, true },
+    { ":",   Precedence::Ternary,    2, true },
 
-        // Boolean operators.
-        make_op_lazy("||", Precedence::LogicalOr,  2, |x: f64| -> usize { if to_bool(x) { 0 } else { 1 } }),
-        make_op_lazy("&&", Precedence::LogicalAnd, 2, |x: f64| -> usize { if to_bool(x) { 1 } else { 0 } }),
-        make_op_1("!",     Precedence::Unary,         |x: f64| -> f64   { to_float(!to_bool(x))          }),
+    // Boolean operators.
+    { "||",  Precedence::LogicalOr,  2, lazy |x| if to_bool(x) {0} else {1} },
+    { "&&",  Precedence::LogicalAnd, 2, lazy |x| if to_bool(x) {1} else {0} },
+    { "!",   Precedence::Unary,         |x| to_float(!to_bool(x)) },
 
-        // Bitwise operators.
-        make_op_2("|",     Precedence::BinaryOr,      |x: f64, y: f64| -> f64 { (to_int(x)  |  to_int(y))        as f64 }),
-        make_op_2("^^",    Precedence::BinaryXor,     |x: f64, y: f64| -> f64 { (to_int(x)  ^  to_int(y))        as f64 }),
-        make_op_2("&",     Precedence::BinaryAnd,     |x: f64, y: f64| -> f64 { (to_int(x)  &  to_int(y))        as f64 }),
-        make_op_2("<<",    Precedence::Shift,         |x: f64, y: f64| -> f64 { (to_int(x)  << (to_int(y) & 31)) as f64 }),
-        make_op_2(">>",    Precedence::Shift,         |x: f64, y: f64| -> f64 { (to_uint(x) >> (to_int(y) & 31)) as f64 }),
-        make_op_2(">>>",   Precedence::Shift,         |x: f64, y: f64| -> f64 { (to_int(x)  >> (to_int(y) & 31)) as f64 }),
-        make_op_1("~",     Precedence::Unary,         |x: f64| -> f64         { !to_int(x)                       as f64 }),
+    // Bitwise operators.
+    { "|",   Precedence::BinaryOr,      |x, y| (to_int(x)  |  to_int(y))        as f64 },
+    { "^^",  Precedence::BinaryXor,     |x, y| (to_int(x)  ^  to_int(y))        as f64 },
+    { "&",   Precedence::BinaryAnd,     |x, y| (to_int(x)  &  to_int(y))        as f64 },
+    { "<<",  Precedence::Shift,         |x, y| (to_int(x)  << (to_int(y) & 31)) as f64 },
+    { ">>",  Precedence::Shift,         |x, y| (to_uint(x) >> (to_int(y) & 31)) as f64 },
+    { ">>>", Precedence::Shift,         |x, y| (to_int(x)  >> (to_int(y) & 31)) as f64 },
+    { "~",   Precedence::Unary,         |x|    !to_int(x)                       as f64 },
 
-        // Comparisons
-        make_op_2("==",    Precedence::CompareEq,     |x: f64, y: f64| -> f64 { to_float(x == y) }),
-        make_op_2("!=",    Precedence::CompareEq,     |x: f64, y: f64| -> f64 { to_float(x != y) }),
-        make_op_2("<",     Precedence::CompareDiff,   |x: f64, y: f64| -> f64 { to_float(x < y)  }),
-        make_op_2(">",     Precedence::CompareDiff,   |x: f64, y: f64| -> f64 { to_float(x > y)  }),
-        make_op_2("<=",    Precedence::CompareDiff,   |x: f64, y: f64| -> f64 { to_float(x <= y) }),
-        make_op_2(">=",    Precedence::CompareDiff,   |x: f64, y: f64| -> f64 { to_float(x >= y) }),
+    // Comparisons
+    { "==",  Precedence::CompareEq,     |x, y| to_float(x == y) },
+    { "!=",  Precedence::CompareEq,     |x, y| to_float(x != y) },
+    { "<",   Precedence::CompareDiff,   |x, y| to_float(x < y)  },
+    { ">",   Precedence::CompareDiff,   |x, y| to_float(x > y)  },
+    { "<=",  Precedence::CompareDiff,   |x, y| to_float(x <= y) },
+    { ">=",  Precedence::CompareDiff,   |x, y| to_float(x >= y) },
 
-        // Arithmetic.
-        make_op_2("+",     Precedence::Addition,      |x: f64, y: f64| -> f64 { x + y }),
-        make_op_2("-",     Precedence::Addition,      |x: f64, y: f64| -> f64 { x - y }),
-        make_op_2("*",     Precedence::Multiply,      |x: f64, y: f64| -> f64 { x * y }),
-        make_op_2("/",     Precedence::Multiply,      |x: f64, y: f64| -> f64 { x / y }),
-        make_op_2("%",     Precedence::Multiply,      |x: f64, y: f64| -> f64 { x.rem_euclid(y) }),
-        make_op_2("^",     Precedence::Power,         |x: f64, y: f64| -> f64 { x.powf(y) }),
-    ];
-
-
-    pub static ref FUNCTIONS: [Operator; 31] = [
-        // Math functions.
-        make_op_2("max",   Precedence::None,          |x: f64, y: f64| -> f64 { if x > y { x } else { y } }),
-        make_op_2("min",   Precedence::None,          |x: f64, y: f64| -> f64 { if x < y { x } else { y } }),
-        make_op_1("sqrt",  Precedence::None,          |x: f64| -> f64 { x.sqrt()  }),
-        make_op_1("exp",   Precedence::None,          |x: f64| -> f64 { x.exp()   }),
-        make_op_1("ln",    Precedence::None,          |x: f64| -> f64 { x.ln()    }),
-        make_op_1("log",   Precedence::None,          |x: f64| -> f64 { x.log10() }),
-        make_op_1("log2",  Precedence::None,          |x: f64| -> f64 { x.log2()  }),
-        make_op_1("abs",   Precedence::None,          |x: f64| -> f64 { x.abs()   }),
-        make_op_1("ceil",  Precedence::None,          |x: f64| -> f64 { x.ceil()  }),
-        make_op_1("floor", Precedence::None,          |x: f64| -> f64 { x.floor() }),
-        make_op_1("round", Precedence::None,          |x: f64| -> f64 { x.round() }),
-
-        // Trig.
-        make_op_1("sin",   Precedence::None,          |x: f64| -> f64 { x.sin()   }),
-        make_op_1("cos",   Precedence::None,          |x: f64| -> f64 { x.cos()   }),
-        make_op_1("tan",   Precedence::None,          |x: f64| -> f64 { x.tan()   }),
-        make_op_1("sinh",  Precedence::None,          |x: f64| -> f64 { x.sinh()  }),
-        make_op_1("cosh",  Precedence::None,          |x: f64| -> f64 { x.cosh()  }),
-        make_op_1("tanh",  Precedence::None,          |x: f64| -> f64 { x.tanh()  }),
-        make_op_1("asin",  Precedence::None,          |x: f64| -> f64 { x.asin()  }),
-        make_op_1("acos",  Precedence::None,          |x: f64| -> f64 { x.acos()  }),
-        make_op_1("atan",  Precedence::None,          |x: f64| -> f64 { x.atan()  }),
-        make_op_1("asinh", Precedence::None,          |x: f64| -> f64 { x.asinh() }),
-        make_op_1("acosh", Precedence::None,          |x: f64| -> f64 { x.acosh() }),
-        make_op_1("atanh", Precedence::None,          |x: f64| -> f64 { x.atanh() }),
-
-        // Casts.
-        make_op_1("i8",    Precedence::None,          |x: f64| -> f64 { (x as i64 as i8)  as f64 }),
-        make_op_1("u8",    Precedence::None,          |x: f64| -> f64 { (x as i64 as u8)  as f64 }),
-        make_op_1("i16",   Precedence::None,          |x: f64| -> f64 { (x as i64 as i16) as f64 }),
-        make_op_1("u16",   Precedence::None,          |x: f64| -> f64 { (x as i64 as u16) as f64 }),
-        make_op_1("i32",   Precedence::None,          |x: f64| -> f64 { (x as i64 as i32) as f64 }),
-        make_op_1("u32",   Precedence::None,          |x: f64| -> f64 { (x as i64 as u32) as f64 }),
-
-        // Constants.
-        make_op_0("e",     Precedence::None,          || -> f64 { f64::consts::E  }),
-        make_op_0("pi",    Precedence::None,          || -> f64 { f64::consts::PI }),
-    ];
+    // Arithmetic.
+    { "+",   Precedence::Addition,      |x, y| x + y },
+    { "-",   Precedence::Addition,      |x, y| x - y },
+    { "*",   Precedence::Multiply,      |x, y| x * y },
+    { "/",   Precedence::Multiply,      |x, y| x / y },
+    { "%",   Precedence::Multiply,      |x, y| x.rem_euclid(y) },
+    { "^",   Precedence::Power,         |x, y| x.powf(y) }
+];
 
 
-    // Special operators, not accessible by name.
-    pub static ref NEGATE:     Operator = make_op_1("-",             Precedence::Unary,         |x: f64| -> f64 { -x });
-    pub static ref TERNARY:    Operator = make_op_lazy("?:",         Precedence::Ternary,    3, |x: f64| -> usize { if to_bool(x) { 1 } else { 2 } });
-    pub static ref TERMINATOR: Operator = make_op_invalid("{arnie}", Precedence::Terminator, 0, false);
-}
+pub static FUNCTIONS: [Operator; 31] = operators![
+    // Math functions.
+    { "max",   |x, y| if x > y {x} else {y} },
+    { "min",   |x, y| if x < y {x} else {y} },
+
+    { "sqrt",  |x| x.sqrt()  },
+    { "exp",   |x| x.exp()   },
+    { "ln",    |x| x.ln()    },
+    { "log",   |x| x.log10() },
+    { "log2",  |x| x.log2()  },
+    { "abs",   |x| x.abs()   },
+    { "ceil",  |x| x.ceil()  },
+    { "floor", |x| x.floor() },
+    { "round", |x| x.round() },
+
+    // Trig.
+    { "sin",   |x| x.sin()   },
+    { "cos",   |x| x.cos()   },
+    { "tan",   |x| x.tan()   },
+    { "sinh",  |x| x.sinh()  },
+    { "cosh",  |x| x.cosh()  },
+    { "tanh",  |x| x.tanh()  },
+    { "asin",  |x| x.asin()  },
+    { "acos",  |x| x.acos()  },
+    { "atan",  |x| x.atan()  },
+    { "asinh", |x| x.asinh() },
+    { "acosh", |x| x.acosh() },
+    { "atanh", |x| x.atanh() },
+
+    // Casts.
+    { "i8",    |x| x as i64 as i8  as f64 },
+    { "u8",    |x| x as i64 as u8  as f64 },
+    { "i16",   |x| x as i64 as i16 as f64 },
+    { "u16",   |x| x as i64 as u16 as f64 },
+    { "i32",   |x| x as i64 as i32 as f64 },
+    { "u32",   |x| x as i64 as u32 as f64 },
+
+    // Constants.
+    { "e",     || f64::consts::E  },
+    { "pi",    || f64::consts::PI }
+];
+
+
+// Special operators, not accessible by name.
+pub static NEGATE:     Operator = operator!{ "-",       Precedence::Unary,         |x| -x };
+pub static TERNARY:    Operator = operator!{ "?:",      Precedence::Ternary,    3, lazy |x| if to_bool(x) {1} else {2} };
+pub static TERMINATOR: Operator = operator!{ "{arnie}", Precedence::Terminator, 0, false };
 
 
 pub fn find_operator(opname: &str) -> Option<OperatorRef> {
