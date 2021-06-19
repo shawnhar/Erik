@@ -67,3 +67,6 @@ fn evaluate_line(line: &str, context: &mut Context) -> Result<(), String> {
 
     Ok(())
 }
+
+
+// TODO: test comma multiple execution
