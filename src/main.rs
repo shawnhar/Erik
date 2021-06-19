@@ -6,6 +6,7 @@ mod tokens;
 use std::collections::HashMap;
 use std::env;
 use std::iter::Peekable;
+
 use input::InputSource;
 use tokens::{Token, Tokenizer};
 

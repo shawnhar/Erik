@@ -2,6 +2,7 @@ use std::f64;
 use std::fmt;
 use std::iter::Peekable;
 use std::mem;
+
 use crate::Context;
 use crate::ops;
 use crate::ops::{OpFunction, OperatorRef};
