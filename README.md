@@ -10,33 +10,33 @@ rusty version of that can surely be nothing other than Erik the Red...
 
 ## Features:
 
-> 2+3
-5
-
-> sqrt(9)+5*2
-13
-
-> f(x,y) = x^(y*2)
-
-> f(3, 4)
-6561
-
-> factorial(n) = n>1 ? n*factorial(n-1) : 1
-
-> factorial(2)
-2
-
-> factorial(3)
-6
-
-> factorial(4)
-24
-
-> base 2 10 13 16
-Using base 2 10 13 16
-
-> 1234
-100_1101_0010  1234  73c  0x4d2
+> > 2+3
+> 5
+> 
+> > sqrt(9)+5*2
+> 13
+> 
+> > f(x,y) = x^(y*2)
+> 
+> > f(3, 4)
+> 6561
+> 
+> > factorial(n) = n>1 ? n*factorial(n-1) : 1
+> 
+> > factorial(2)
+> 2
+> 
+> > factorial(3)
+> 6
+> 
+> > factorial(4)
+> 24
+> 
+> > base 2 10 13 16
+> Using base 2 10 13 16
+> 
+> > 1234
+> 100_1101_0010  1234  73c  0x4d2
 
 "help" to show all the available operators, functions, and commands.
 
@@ -70,4 +70,6 @@ Cons:
 - The learning curve is steep!
 - Rust tries so hard to get you to write things correctly the first time, it's slower than other languages for prototyping and quickly hacking stuff together.
 - Sometimes its focus on correctness gets in the way of practicality. Really, you aren't going to let me assign a constant 0 to a floating point value unless I write 0.0? And you're not going to let me feed floats into the min/max operators because when considering NaN those technically don't have a strict ordering? Come on, this is pedantry, not helpfulness.
-- The standard library is oddly inconsistent. Operations available on arrays, strings, slices, vec, and iterators are significantly different, so you have to pay attention to which of these you are dealing with and frequently insert iter() or collect() calls to convert from one to the other depending on what you want to do next. This is annoying, and a notable contrast vs. C# where /everything/ implements IEnumerable in a super consistent way.
+- The standard library is oddly inconsistent. Operations available on arrays, strings, slices, vec, and iterators are significantly different, so you have to pay attention to which of these you are dealing with and frequently insert iter() or collect() calls to convert from one to the other depending on what you want to do next. This is annoying, and a notable contrast vs. C# where _everything_ implements IEnumerable in a super consistent way.
+- Trivial nit: I kept getting tripped up by => vs. ->! Do those really need to be different?
+- Another nit: the distinction between statements (terminated by ;) and expressions (no terminator) seems needlessly subtle.
