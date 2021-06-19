@@ -3,14 +3,14 @@ mod input;
 mod ops;
 mod tokens;
 
-#[macro_use]
-extern crate lazy_static;
-
 use std::collections::HashMap;
 use std::env;
 use std::iter::Peekable;
 use input::InputSource;
 use tokens::{Token, Tokenizer};
+
+#[macro_use]
+extern crate lazy_static;
 
 
 // Global context stores all state of the calculator.
