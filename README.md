@@ -10,33 +10,33 @@ rusty version of that can surely be nothing other than Erik the Red...
 
 ## Features:
 
-> > 2+3
-> 5
-> 
-> > sqrt(9)+5*2
-> 13
-> 
-> > f(x,y) = x^(y*2)
-> 
-> > f(3, 4)
-> 6561
-> 
-> > factorial(n) = n>1 ? n*factorial(n-1) : 1
-> 
-> > factorial(2)
-> 2
-> 
-> > factorial(3)
-> 6
-> 
-> > factorial(4)
-> 24
-> 
-> > base 2 10 13 16
-> Using base 2 10 13 16
-> 
-> > 1234
-> 100_1101_0010  1234  73c  0x4d2
+    > 2+3
+    5
+    
+    > sqrt(9)+5*2
+    13
+    
+    > f(x,y) = x^(y*2)
+    
+    > f(3, 4)
+    6561
+    
+    > factorial(n) = n>1 ? n*factorial(n-1) : 1
+    
+    > factorial(2)
+    2
+    
+    > factorial(3)
+    6
+    
+    > factorial(4)
+    24
+    
+    > base 2 10 13 16
+    Using base 2 10 13 16
+    
+    > 1234
+    100_1101_0010  1234  73c  0x4d2
 
 "help" to show all the available operators, functions, and commands.
 
