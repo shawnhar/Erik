@@ -73,11 +73,11 @@ fn evaluate_line(line: &str, context: &mut Context) -> Result<bool, String> {
 }
 
 
-fn dispatch_command(tokenizer: &mut Peekable<Tokenizer>, _context: &mut Context) -> Option<bool> {
+fn dispatch_command(tokenizer: &mut Peekable<Tokenizer>, context: &mut Context) -> Option<bool> {
     // Check if the next input token is in the COMMANDS table, and dispatch through that if found.
     if let Some(Ok(Token::Text(command))) = tokenizer.peek() {
         if let Some(command) = COMMANDS.get(command) {
-            return Some(command())
+            return Some(command(context))
         }
     }
 
@@ -86,7 +86,7 @@ fn dispatch_command(tokenizer: &mut Peekable<Tokenizer>, _context: &mut Context)
 
 
 // Special commands return a bool indicating whether to keep going.
-type Command = Box<fn() -> bool>;
+type Command = Box<fn(&Context) -> bool>;
 
 
 lazy_static! {
@@ -94,10 +94,31 @@ lazy_static! {
         ( "q",    Command::new(quit_command) ),
         ( "quit", Command::new(quit_command) ),
         ( "exit", Command::new(quit_command) ),
+        ( "ls",   Command::new(ls_command)   ),
     ].iter().cloned().collect();
 }
 
 
-fn quit_command() -> bool {
+fn quit_command(_: &Context) -> bool {
     false
+}
+
+
+fn ls_command(context: &Context) -> bool {
+    use itertools::Itertools;
+
+    let sorted_functions = context.functions.iter().sorted_by_key(|f| f.0);
+    
+    for (name, expr::Function{ expression, args }) in sorted_functions {
+        let args = if args.is_empty() {
+            String::from("")
+        }
+        else {
+            String::from("(") + &args.join(",") + ")"
+        };
+        
+        println!("{}{} = {}", name, args, expression);
+    }
+    
+    true
 }

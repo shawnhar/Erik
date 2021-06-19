@@ -10,7 +10,6 @@ other than Erik the Red...
 
 TODO:
 - help
-- ls
 - number base for display
 - degrees/radians
 - load/save

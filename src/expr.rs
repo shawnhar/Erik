@@ -20,8 +20,8 @@ pub enum ExpressionNode {
 // A user defined function consists of an expression tree plus list of parameter names.
 #[derive(Debug)]
 pub struct Function {
-    expression: ExpressionNode,
-    args: Vec<String>,
+    pub expression: ExpressionNode,
+    pub args: Vec<String>,
 }
 
 
