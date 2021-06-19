@@ -145,7 +145,7 @@ fn print_help(title: &str, mut items: Vec<&str>) {
     println!();
     println!("{}:", title);
 
-    items.sort();
+    items.sort_unstable();
 
     let item_width = items.iter().fold(0, |a, i| std::cmp::max(a, i.len())) + 2;
 
@@ -166,7 +166,7 @@ fn base_command(tokenizer: &mut Peekable<Tokenizer>, context: &mut Context) -> b
 
     for token in tokenizer {
         match token {
-            Ok(Token::Number(base)) if base >= 2.0 && base <= 36.0 => new_bases.push(base as u32),
+            Ok(Token::Number(base)) if (2.0..=36.0).contains(&base) => new_bases.push(base as u32),
             _ => { println!("Usage: base <list of number bases between 2 and 36>"); return true; }
         }
     }
@@ -184,7 +184,7 @@ fn base_command(tokenizer: &mut Peekable<Tokenizer>, context: &mut Context) -> b
 }
 
 
-fn print_number(value: f64, bases: &Vec<u32>) {
+fn print_number(value: f64, bases: &[u32]) {
     for (i, base) in bases.iter().enumerate() {
         if i > 0 {
             print!("  ");
@@ -211,12 +211,12 @@ fn format_integer(value: f64, base: u32) -> String {
 
     while p <= value as u64 {
         p *= base;
-        i = i + 1;
+        i += 1;
     }
 
     while i > 0 {
-        i = i - 1;
-        p = p / base;
+        i -= 1;
+        p /= base;
         
         result.push(std::char::from_digit(((value as u64 / p) % base) as u32, base as u32).unwrap());
         

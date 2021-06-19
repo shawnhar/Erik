@@ -56,7 +56,7 @@ impl<'a> Iterator for Tokenizer<'a> {
             }
             
             // End of the input stream.
-            None => return None
+            None => None
         }
     }
 }
@@ -94,7 +94,7 @@ impl<'a> Tokenizer<'a> {
 
     // Peeks the next character, without advancing the input position.
     fn peek(&mut self) -> Option<char> {
-        if let None = self.peeked {
+        if self.peeked.is_none() {
             self.peeked = self.input_iterator.next();
         }
         
@@ -223,17 +223,14 @@ impl<'a> Tokenizer<'a> {
         while could_be_operator(&start_slice[.. start_slice.len() - self.input_iterator.as_str().len()]) {
             self.get();
 
-            if let None = self.peek() {
+            if self.peek().is_none() {
                 break;
             }
         }
 
         let opname = &start_slice[.. start_slice.len() - self.remainder.len()];
 
-        match ops::find_operator(opname) {
-            Some(operator) => Some(Token::Operator(operator)),
-            None => None
-        }
+        ops::find_operator(opname).map(|operator| Token::Operator(operator))
     }
 }
 

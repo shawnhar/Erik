@@ -46,7 +46,7 @@ const MAX_RECURSION: u32 = 256;
 // Expression tree formatter, useful for debugging and unit tests.
 impl fmt::Display for ExpressionNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn format_args(args: &Vec<ExpressionNode>) -> String {
+        fn format_args(args: &[ExpressionNode]) -> String {
             args.iter()
                 .map(|arg| { format!("{}", arg) })
                 .collect::<Vec<String>>()
@@ -129,7 +129,7 @@ impl Parser {
                     }
 
                     if !stack_op.is_right_associative {
-                        stack_precedence = stack_precedence + 1;
+                        stack_precedence += 1;
                     }
                 }
 
@@ -327,7 +327,7 @@ fn eval(expression: &ExpressionNode, frame: &FunctionFrame) -> Result<f64, Strin
 }
 
 
-fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>, frame: &FunctionFrame) -> Result<f64, String> {
+fn evaluate_operator(op: OperatorRef, args: &[ExpressionNode], frame: &FunctionFrame) -> Result<f64, String> {
     match op.function {
         // No need for bound checks because the parser never outputs operators with wrong argument count.
         OpFunction::Nullary(function) => Ok(function()),
@@ -354,7 +354,7 @@ fn evaluate_operator(op: OperatorRef, args: &Vec<ExpressionNode>, frame: &Functi
 }
 
 
-fn evaluate_function(name: &String, args: &Vec<ExpressionNode>, frame: &FunctionFrame) -> Result<f64, String> {
+fn evaluate_function(name: &str, args: &[ExpressionNode], frame: &FunctionFrame) -> Result<f64, String> {
     if let Some(which_local) = frame.local_names.iter().position(|local_name| { local_name == name }) {
         // Looking up a local function parameter.
         if args.is_empty() {
