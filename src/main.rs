@@ -73,16 +73,31 @@ fn evaluate_line(line: &str, context: &mut Context) -> Result<bool, String> {
 }
 
 
-fn dispatch_command(tokenizer: &mut Peekable<Tokenizer>, context: &mut Context) -> Option<bool> {
+fn dispatch_command(tokenizer: &mut Peekable<Tokenizer>, _context: &mut Context) -> Option<bool> {
+    // Check if the next input token is in the COMMANDS table, and dispatch through that if found.
     if let Some(Ok(Token::Text(command))) = tokenizer.peek() {
-        match *command {
-            "q"    => Some(false),
-            "quit" => Some(false),
-            "exit" => Some(false),
-            _      => None
+        if let Some(command) = COMMANDS.get(command) {
+            return Some(command())
         }
     }
-    else {
-        None
-    }
+
+    None
+}
+
+
+// Special commands return a bool indicating whether to keep going.
+type Command = Box<fn() -> bool>;
+
+
+lazy_static! {
+    static ref COMMANDS: HashMap<&'static str, Command> = [
+        ( "q",    Command::new(quit_command) ),
+        ( "quit", Command::new(quit_command) ),
+        ( "exit", Command::new(quit_command) ),
+    ].iter().cloned().collect();
+}
+
+
+fn quit_command() -> bool {
+    false
 }

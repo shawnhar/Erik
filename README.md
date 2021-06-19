@@ -12,6 +12,7 @@ TODO:
 - help
 - ls
 - number base for display
+- degrees/radians
 - load/save
 - readme
 - write up notes on Rust
