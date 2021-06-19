@@ -57,8 +57,10 @@ Pros of Rust:
 - Error handling is fantastic. Unobtrusive to the flow of algorithms, yet robust. This is by far the most clarity a language has ever helped me with around which things can fail and what needs to be checked where.
 - The dev environment is solid. Great built-in unit test framework, and it's super easy to consume 3rd party crates (of which many useful ones are available).
 - Pragmatic mix of functional, imperative and other programming styles. I appreciate that it doesn't try to force you down any one path.
-- Pattern matching struck me as kinda pointless syntax sugar at first, but it grew on me. Can be an elegant way of expressing complex logic.
-- From what little I've seen, macros are crazy cool and powerful, but I still need to learn more here.
+- Pattern matching struck me as kinda pointless syntax sugar at first, but it grew on me. Can be an elegant way of expressing logic. In combination with Rust enums, this encourages simpler and more efficient solutions where in other languages I would probably have reached for full dynamic dispatch polymorphism.
+- The set of functionality provided by iterators is rich and powerful.
+- Love how easy #[derive(Debug)] makes it to print out custom types during development.
+- Macros are crazy cool and powerful.
 
 Cons:
 - The learning curve is steep!
@@ -67,3 +69,5 @@ Cons:
 - The standard library is oddly inconsistent. Operations available on arrays, strings, slices, vec, and iterators are significantly different, so you have to pay attention to which of these you are dealing with and frequently insert iter() or collect() calls to convert from one to the other depending on what you want to do next. This is annoying, and a notable contrast vs. C# where _everything_ implements IEnumerable in a super consistent way.
 - Trivial nit: I kept getting tripped up by => vs. ->! Do those really need to be different?
 - Another nit: the distinction between statements (terminated by ;) and expressions (no terminator) seems needlessly subtle.
+- Likewise the syntax for functions vs. closures seems unnecessarily different.
+- Type inference is mostly great, but let me down in surprising places. Like why do I have to explicitly provide the size of an initialized array? If the error message from getting this wrong is able to tell me exactly what the size ought to be, I shouldn't need to specify it at all.
