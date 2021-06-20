@@ -47,7 +47,7 @@ fn main() {
         match evaluate_line(&line, &mut context) {
             Ok(true)     => {},
             Ok(false)    => break,
-            Err(message) => println!("{}", message)
+            Err(message) => println!("{}", message),
         }
     }
 }
@@ -67,8 +67,7 @@ fn evaluate_line(line: &str, context: &mut Context) -> Result<bool, String> {
         if let Some((function, function_name)) = expr::deconstruct_function_definition(&mut expression) {
             // Define a new function.
             context.functions.insert(function_name, function);
-        }
-        else {
+        } else {
             // Evaluate an expression.
             print_number(expr::evaluate(&expression, context)?, &context.bases);
         }
@@ -84,7 +83,7 @@ fn dispatch_command(tokenizer: &mut Peekable<Tokenizer>, context: &mut Context) 
         if let Some(command) = COMMANDS.get(command) {
             tokenizer.next();
             
-            return Some(command(tokenizer, context))
+            return Some(command(tokenizer, context));
         }
     }
 
@@ -121,8 +120,7 @@ fn ls_command(_: &mut Peekable<Tokenizer>, context: &mut Context) -> bool {
     for (name, expr::Function{ expression, args }) in sorted_functions {
         let args = if args.is_empty() {
             String::from("")
-        }
-        else {
+        } else {
             String::from("(") + &args.join(",") + ")"
         };
         

@@ -49,7 +49,7 @@ impl fmt::Display for ExpressionNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn format_args(args: &[ExpressionNode]) -> String {
             args.iter()
-                .map(|arg| { format!("{}", arg) })
+                .map(|arg| format!("{}", arg))
                 .collect::<Vec<String>>()
                 .join(",")
         }
@@ -64,8 +64,7 @@ impl fmt::Display for ExpressionNode {
 
 
 // The parser turns a series of tokens into an expression tree.
-struct Parser
-{
+struct Parser {
     current: Option<ExpressionNode>,
     stack: Vec<(OperatorRef, Option<ExpressionNode>)>,
 }
@@ -99,11 +98,11 @@ impl Parser {
                 }
                 
                 self.current = Some(ExpressionNode::Operator { op, args });
-            },
+            }
 
             None => {
                 self.current = Some(ExpressionNode::Function { name: String::from(symbol), args });
-            },
+            }
         }
 
         Ok(())
@@ -150,7 +149,7 @@ impl Parser {
                             },
                             _ => return Err(format!("Invalid expression: unary {} operator is missing an operand.", stack_op.name))
                         }
-                    },
+                    }
 
                     2 => {
                         // Binary operator - or it could be adjacent ? and : which combine to form a ternary.
@@ -160,8 +159,8 @@ impl Parser {
                             },
                             _ => return Err(format!("Invalid expression: binary {} operator is missing an operand.", stack_op.name))
                         }
-                    },
-                    
+                    }
+
                     _ => {
                         // Match open and close braces.
                         if stack_op != "(" || stack_value.is_some() {
@@ -171,8 +170,7 @@ impl Parser {
                         if op == ")" {
                             if self.current.is_none() {
                                 return Err(String::from("Invalid expression: unexpected close parenthesis."));
-                            }
-                            else {
+                            } else {
                                 return Ok(());
                             }
                         }
@@ -186,8 +184,7 @@ impl Parser {
             if self.stack.is_empty() {
                 return Err(String::from("Invalid expression: too many close parentheses."));
             }
-        }
-        else {
+        } else {
             // Push onto the stack.
             self.stack.push((op, self.current.take()));
         }
@@ -216,8 +213,7 @@ impl Parser {
 
 
     // Parses the arguments of a function call.
-    fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Result<Vec<ExpressionNode>, String>
-    {
+    fn parse_arguments(tokenizer: &mut Peekable<Tokenizer>) -> Result<Vec<ExpressionNode>, String> {
         let mut args = vec![];
 
         if Parser::peek_operator(tokenizer, "(") {
@@ -245,13 +241,11 @@ impl Parser {
             // Parsing x or y from something like f(x, y(z)).
             // Closing parenthesis terminates only if there are no open parens on the stack.
             if Parser::peek_operator(tokenizer, ")") {
-                !self.stack.iter().any(|op| { op.0 == "(" })
-            }
-            else {
+                !self.stack.iter().any(|op| op.0 == "(")
+            } else {
                 false
             }
-        }
-        else {
+        } else {
             // When parsing a top level expression, we're done if the input runs out.
             tokenizer.peek().is_none()
         }
@@ -262,7 +256,7 @@ impl Parser {
     fn peek_operator(tokenizer: &mut Peekable<Tokenizer>, opname: &str) -> bool {
         match tokenizer.peek() {
             Some(Ok(Token::Operator(op))) => op == opname,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -278,14 +272,12 @@ pub fn parse(tokenizer: &mut Peekable<Tokenizer>, is_nested: bool) -> Result<Exp
 
     while !parser.is_finished(tokenizer, is_nested) {
         match tokenizer.next() {
-            Some(token) => {
-                match token? {
-                    Token::Number(value) => parser.push_constant(value)?,
-                    Token::Text(value)   => parser.push_symbol(value, tokenizer)?,
-                    Token::Operator(op)  => parser.push_operator(op)?,
-                }
+            Some(token) => match token? {
+                Token::Number(value) => parser.push_constant(value)?,
+                Token::Text(value)   => parser.push_symbol(value, tokenizer)?,
+                Token::Operator(op)  => parser.push_operator(op)?,
             },
-            None => return Err(String::from("Invalid expression: unexpected end of input."))
+            None => return Err(String::from("Invalid expression: unexpected end of input.")),
         }
     }
 
@@ -311,7 +303,7 @@ pub fn evaluate(expression: &ExpressionNode, context: &Context) -> Result<f64, S
         context,
         local_names: &vec![],
         local_values: vec![],
-        recursion_count: 0
+        recursion_count: 0,
     };
     
     eval(expression, &frame)
@@ -344,8 +336,7 @@ fn evaluate_operator(op: OperatorRef, args: &[ExpressionNode], frame: &FunctionF
             
             if which_arg == 0 {
                 Ok(arg0)
-            }
-            else {
+            } else {
                 eval(&args[which_arg], frame)
             }
         },
@@ -360,12 +351,10 @@ fn evaluate_function(name: &str, args: &[ExpressionNode], frame: &FunctionFrame)
         // Looking up a local function parameter.
         if args.is_empty() {
             Ok(frame.local_values[which_local])
-        }
-        else {
+        } else {
             Err(format!("Use of {}() as first class function is not supported.", name))
         }
-    }
-    else {
+    } else {
         // Calling a user defined function.
         match frame.context.functions.get(name) {
             Some(function) => {
@@ -387,7 +376,7 @@ fn evaluate_function(name: &str, args: &[ExpressionNode], frame: &FunctionFrame)
                     context: frame.context,
                     local_names: &function.args,
                     local_values: child_args,
-                    recursion_count: frame.recursion_count + 1
+                    recursion_count: frame.recursion_count + 1,
                 };
                 
                 eval(&function.expression, &child_frame)
@@ -421,7 +410,7 @@ pub fn deconstruct_function_definition(expression: &mut ExpressionNode) -> Optio
 
                 // Take ownership and return the deconstructed function data.
                 let function_name = mem::take(function_name);
-                let args = args.iter_mut().map(|arg| { mem::take(*arg) }).collect();
+                let args = args.iter_mut().map(|arg| mem::take(*arg)).collect();
                 let function_body = assign_args.pop().unwrap();
 
                 return Some((Function { expression: function_body, args }, function_name));

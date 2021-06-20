@@ -13,8 +13,7 @@ impl InputSource {
         if args.is_empty() {
             // Reading from an interactive console.
             InputSource { text: None }
-        }
-        else {
+        } else {
             // Should we read an argument file, or use the commandline arguments directly?
             let mut text = match read_arg_file(&args) {
                 Some(arg_file_contents) => arg_file_contents,
@@ -38,10 +37,9 @@ fn read_arg_file(args: &[String]) -> Option<Vec<String>> {
             Ok(file_contents) => Some(file_contents.lines()
                                                    .map(String::from)
                                                    .collect()),
-            Err(_) => None
+            Err(_) => None,
         }
-    }
-    else {
+    } else {
         None
     }
 }
@@ -57,8 +55,8 @@ impl Iterator for InputSource {
             Some(text) => {
                 // Return text from commandline or argument file.
                 text.pop()
-            },
-            
+            }
+
             None => {
                 // Read text from the console.
                 print!("\n> ");

@@ -78,37 +78,37 @@ macro_rules! operators {
 macro_rules! operator {
     // Matches a nullary function.
     ($name:literal, || $expression:expr) => {
-        Operator { name:$name, precedence:Precedence::None, arity:0, is_right_associative:false, function:OpFunction::Nullary(|| -> f64 { $expression }) }
+        Operator { name: $name, precedence: Precedence::None, arity: 0, is_right_associative: false, function: OpFunction::Nullary(|| -> f64 { $expression }) }
     };
 
     // Matches a unary function.
     ($name:literal, |$x:ident| $expression:expr) => {
-        Operator { name:$name, precedence:Precedence::None, arity:1, is_right_associative:false, function:OpFunction::Unary(|$x: f64| -> f64 { $expression }) }
+        Operator { name: $name, precedence: Precedence::None, arity: 1, is_right_associative: false, function: OpFunction::Unary(|$x: f64| -> f64 { $expression }) }
     };
 
     // Matches a unary operator.
     ($name:literal, $precedence:expr, |$x:ident| $expression:expr) => {
-        Operator { name:$name, precedence:$precedence, arity:1, is_right_associative:false, function:OpFunction::Unary(|$x: f64| -> f64 { $expression }) }
+        Operator { name: $name, precedence: $precedence, arity: 1, is_right_associative: false, function: OpFunction::Unary(|$x: f64| -> f64 { $expression }) }
     };
 
     // Matches a binary function.
     ($name:literal, |$x:ident, $y:ident| $expression:expr) => {
-        Operator { name:$name, precedence:Precedence::None, arity:2, is_right_associative:false, function:OpFunction::Binary(|$x: f64, $y: f64| -> f64 { $expression }) }
+        Operator { name: $name, precedence: Precedence::None, arity: 2, is_right_associative: false, function: OpFunction::Binary(|$x: f64, $y: f64| -> f64 { $expression }) }
     };
 
     // Matches a binary operator.
     ($name:literal, $precedence:expr, |$x:ident, $y:ident| $expression:expr) => {
-        Operator { name:$name, precedence:$precedence, arity:2, is_right_associative:false, function:OpFunction::Binary(|$x: f64, $y: f64| -> f64 { $expression }) }
+        Operator { name: $name, precedence: $precedence, arity: 2, is_right_associative: false, function: OpFunction::Binary(|$x: f64, $y: f64| -> f64 { $expression }) }
     };
 
     // Matches a lazily evaluated operator, identified by "lazy" marker keyword.
     ($name:literal, $precedence:expr, $arity:literal, lazy |$x:ident| $expression:expr) => {
-        Operator { name:$name, precedence:$precedence, arity:$arity, is_right_associative:false, function:OpFunction::Lazy(|$x: f64| -> usize { $expression }) }
+        Operator { name: $name, precedence: $precedence, arity: $arity, is_right_associative: false, function: OpFunction::Lazy(|$x: f64| -> usize { $expression }) }
     };
 
     // Matches a special operator that does not have any evaluation function.
     ($name:literal, $precedence:expr, $arity:literal, $is_right_associative:literal) => {
-        Operator { name:$name, precedence:$precedence, arity:$arity, is_right_associative:$is_right_associative, function:OpFunction::Invalid }
+        Operator { name: $name, precedence: $precedence, arity: $arity, is_right_associative: $is_right_associative, function: OpFunction::Invalid }
     };
 }
 

@@ -140,12 +140,12 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        let slice = &start_slice[.. start_slice.len() - self.remainder.len()];
+        let slice = &start_slice[..start_slice.len() - self.remainder.len()];
 
         // The above logic will accept plenty of invalid strings, so this conversion can fail!
         match slice.parse() {
             Ok(value) => Ok(Token::Number(value)),
-            Err(_) => Err(format!("Invalid numeric constant '{}'.", slice))
+            Err(_) => Err(format!("Invalid numeric constant '{}'.", slice)),
         }
     }
 
@@ -160,12 +160,11 @@ impl<'a> Tokenizer<'a> {
 
                 match value.checked_mul(base) {
                     Some(new_value) => value = new_value,
-                    None => return Err(format!("Base {} constant overflowed 32 bit range.", base))
+                    None => return Err(format!("Base {} constant overflowed 32 bit range.", base)),
                 }
                 
                 value |= digit;
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -182,7 +181,7 @@ impl<'a> Tokenizer<'a> {
             self.get();
         }
 
-        Token::Text(&start_slice[.. start_slice.len() - self.remainder.len()])
+        Token::Text(&start_slice[..start_slice.len() - self.remainder.len()])
     }
 
 
@@ -196,11 +195,11 @@ impl<'a> Tokenizer<'a> {
             match self.get() {
                 Some(char) if char == quote => break,
                 Some(_) => end_slice = self.remainder,
-                None => break
+                None => break,
             }
         }
 
-        Token::Text(&start_slice[.. start_slice.len() - end_slice.len()])
+        Token::Text(&start_slice[..start_slice.len() - end_slice.len()])
     }
 
 
@@ -208,7 +207,7 @@ impl<'a> Tokenizer<'a> {
     fn read_unknown_character(&mut self) -> Token<'a> {
         let start_slice = self.remainder;
         self.get();
-        Token::Text(&start_slice[.. start_slice.len() - self.remainder.len()])
+        Token::Text(&start_slice[..start_slice.len() - self.remainder.len()])
     }
 
 
@@ -220,7 +219,7 @@ impl<'a> Tokenizer<'a> {
             ops::OPERATORS.iter().any(|op| op.name.starts_with(opname))
         }
 
-        while could_be_operator(&start_slice[.. start_slice.len() - self.input_iterator.as_str().len()]) {
+        while could_be_operator(&start_slice[..start_slice.len() - self.input_iterator.as_str().len()]) {
             self.get();
 
             if self.peek().is_none() {
@@ -228,7 +227,7 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        let opname = &start_slice[.. start_slice.len() - self.remainder.len()];
+        let opname = &start_slice[..start_slice.len() - self.remainder.len()];
 
         ops::find_operator(opname).map(|operator| Token::Operator(operator))
     }
